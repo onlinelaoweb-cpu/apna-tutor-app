@@ -1,0 +1,731 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Apna Tutor — CBSE Home Companion</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Roboto+Slab:wght@600;700&family=Inter:wght@400;500;600;700&family=IBM+Plex+Mono:wght@500;600&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #F5F7FA;
+    --bg-alt: #FFFFFF;
+    --ink: #1B2A41;
+    --ink-soft: #5B6B85;
+    --navy: #1B3358;
+    --navy-soft: #2C4874;
+    --gold: #E8A33D;
+    --maroon: #B23A48;
+    --green-ok: #3F8F5F;
+    --line: #DDE3EC;
+    --radius: 14px;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    background: var(--bg);
+    color: var(--ink);
+    font-family: 'Inter', sans-serif;
+    -webkit-font-smoothing: antialiased;
+  }
+  .app { display: flex; min-height: 100vh; }
+
+  /* ---------- Sidebar ---------- */
+  .sidebar {
+    width: 300px;
+    flex-shrink: 0;
+    background: var(--navy);
+    color: #fff;
+    padding: 24px 18px;
+    display: flex;
+    flex-direction: column;
+    gap: 20px;
+  }
+  .brand {
+    font-family: 'Roboto Slab', serif;
+    font-size: 22px;
+    font-weight: 700;
+    letter-spacing: 0.2px;
+  }
+  .brand span { color: var(--gold); }
+  .brand-sub { font-size: 12px; color: #A9B7CE; margin-top: 2px; }
+
+  .profiles { display: flex; flex-direction: column; gap: 8px; }
+  .section-label {
+    font-size: 11px;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    color: #8DA0C0;
+    font-weight: 600;
+    margin-bottom: 4px;
+  }
+  .profile-chip {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 9px 10px;
+    border-radius: 10px;
+    cursor: pointer;
+    border: 1px solid transparent;
+    background: rgba(255,255,255,0.04);
+    transition: background 0.15s ease;
+  }
+  .profile-chip:hover { background: rgba(255,255,255,0.09); }
+  .profile-chip.active {
+    background: rgba(232,163,61,0.16);
+    border-color: var(--gold);
+  }
+  .avatar {
+    width: 30px; height: 30px; border-radius: 50%;
+    display: flex; align-items: center; justify-content: center;
+    font-family: 'IBM Plex Mono', monospace;
+    font-weight: 600; font-size: 12px;
+    color: #fff; flex-shrink: 0;
+  }
+  .profile-meta { line-height: 1.25; }
+  .profile-name { font-size: 13.5px; font-weight: 600; }
+  .profile-grade { font-size: 11.5px; color: #A9B7CE; }
+
+  .btn-ghost {
+    background: transparent;
+    border: 1px dashed #4E668E;
+    color: #C7D3E6;
+    padding: 9px 10px;
+    border-radius: 10px;
+    font-size: 13px;
+    cursor: pointer;
+    text-align: left;
+  }
+  .btn-ghost:hover { border-color: var(--gold); color: #fff; }
+
+  .add-form {
+    background: rgba(255,255,255,0.05);
+    padding: 12px;
+    border-radius: 10px;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+  }
+  .add-form input, .add-form select {
+    padding: 8px 9px;
+    border-radius: 7px;
+    border: 1px solid #4E668E;
+    background: #142440;
+    color: #fff;
+    font-size: 13px;
+    font-family: 'Inter', sans-serif;
+  }
+  .add-form input::placeholder { color: #7C8DAC; }
+  .add-form button {
+    background: var(--gold);
+    border: none;
+    color: #24170A;
+    font-weight: 700;
+    padding: 8px;
+    border-radius: 7px;
+    cursor: pointer;
+    font-size: 13px;
+  }
+
+  .setup-block { display: flex; flex-direction: column; gap: 10px; margin-top: 4px; }
+  .setup-block select {
+    width: 100%;
+    padding: 9px 10px;
+    border-radius: 8px;
+    border: 1px solid #4E668E;
+    background: #142440;
+    color: #fff;
+    font-size: 13px;
+  }
+  .subject-grid { display: flex; flex-wrap: wrap; gap: 6px; }
+  .subject-chip {
+    padding: 6px 10px;
+    border-radius: 999px;
+    font-size: 12px;
+    font-weight: 600;
+    cursor: pointer;
+    border: 1.5px solid transparent;
+    color: #fff;
+    opacity: 0.75;
+  }
+  .subject-chip.active { opacity: 1; border-color: #fff; }
+  .topic-input {
+    width: 100%;
+    padding: 9px 10px;
+    border-radius: 8px;
+    border: 1px solid #4E668E;
+    background: #142440;
+    color: #fff;
+    font-size: 13px;
+  }
+  .topic-hint { font-size: 11px; color: #8DA0C0; line-height: 1.4; }
+
+  /* ---------- Main ---------- */
+  .main { flex: 1; display: flex; flex-direction: column; min-width: 0; }
+  .topbar {
+    padding: 18px 28px;
+    border-bottom: 1px solid var(--line);
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    background: var(--bg-alt);
+  }
+  .topbar h1 {
+    font-family: 'Roboto Slab', serif;
+    font-size: 18px;
+    margin: 0;
+  }
+  .topbar .context { font-size: 13px; color: var(--ink-soft); }
+
+  .tabs { display: flex; gap: 6px; padding: 14px 28px 0; background: var(--bg-alt); border-bottom: 1px solid var(--line); }
+  .tab {
+    padding: 9px 16px;
+    font-size: 13.5px;
+    font-weight: 600;
+    color: var(--ink-soft);
+    cursor: pointer;
+    border-bottom: 3px solid transparent;
+  }
+  .tab.active { color: var(--navy); border-color: var(--gold); }
+
+  .panel { flex: 1; padding: 24px 28px; overflow-y: auto; }
+  .empty-state {
+    max-width: 420px;
+    margin: 60px auto;
+    text-align: center;
+    color: var(--ink-soft);
+  }
+  .empty-state h2 { font-family: 'Roboto Slab', serif; color: var(--navy); font-size: 20px; }
+
+  /* Chat */
+  .chat-window {
+    display: flex;
+    flex-direction: column;
+    gap: 14px;
+    max-width: 720px;
+    margin: 0 auto 90px;
+  }
+  .msg { display: flex; gap: 10px; }
+  .msg.user { flex-direction: row-reverse; }
+  .bubble {
+    padding: 11px 14px;
+    border-radius: var(--radius);
+    font-size: 14.5px;
+    line-height: 1.55;
+    max-width: 480px;
+    white-space: pre-wrap;
+  }
+  .msg.assistant .bubble { background: var(--bg-alt); border: 1px solid var(--line); }
+  .msg.user .bubble { background: var(--navy); color: #fff; }
+  .msg-avatar {
+    width: 28px; height: 28px; border-radius: 50%; flex-shrink: 0;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 13px; font-weight: 700; color: #fff;
+  }
+  .chat-input-bar {
+    position: sticky; bottom: 0;
+    max-width: 720px; margin: 0 auto;
+    display: flex; gap: 8px;
+    background: var(--bg);
+    padding-top: 8px;
+  }
+  .chat-input-bar textarea {
+    flex: 1; resize: none;
+    border: 1px solid var(--line);
+    border-radius: 10px;
+    padding: 10px 12px;
+    font-family: 'Inter', sans-serif;
+    font-size: 14px;
+    min-height: 44px; max-height: 120px;
+  }
+  .send-btn {
+    background: var(--navy); color: #fff; border: none;
+    padding: 0 18px; border-radius: 10px; font-weight: 600; cursor: pointer;
+  }
+  .send-btn:disabled { opacity: 0.5; cursor: default; }
+
+  /* Quiz */
+  .quiz-shell { max-width: 620px; margin: 0 auto; }
+  .quiz-start-btn {
+    background: var(--gold); color: #2B1B05; border: none;
+    padding: 11px 20px; border-radius: 10px; font-weight: 700; cursor: pointer; font-size: 14px;
+  }
+  .q-card {
+    background: var(--bg-alt); border: 1px solid var(--line);
+    border-radius: var(--radius); padding: 16px 18px; margin-bottom: 14px;
+  }
+  .q-num { font-family: 'IBM Plex Mono', monospace; font-size: 12px; color: var(--ink-soft); }
+  .q-text { font-size: 15px; font-weight: 600; margin: 4px 0 10px; }
+  .option {
+    display: block; width: 100%; text-align: left;
+    padding: 9px 12px; margin-bottom: 6px;
+    border: 1.5px solid var(--line); border-radius: 8px;
+    background: #fff; cursor: pointer; font-size: 13.5px;
+  }
+  .option.selected { border-color: var(--navy); background: #EEF2F8; }
+  .option.correct { border-color: var(--green-ok); background: #EAF7EF; }
+  .option.wrong { border-color: var(--maroon); background: #FBEAEC; }
+  .explain { font-size: 12.5px; color: var(--ink-soft); margin-top: 8px; padding-top: 8px; border-top: 1px dashed var(--line); }
+
+  /* Stamp */
+  .stamp-wrap { display: flex; justify-content: center; margin: 26px 0; }
+  .stamp {
+    width: 150px; height: 150px; border-radius: 50%;
+    border: 4px double var(--maroon);
+    color: var(--maroon);
+    display: flex; flex-direction: column; align-items: center; justify-content: center;
+    transform: rotate(-8deg);
+    font-family: 'IBM Plex Mono', monospace;
+    animation: stampIn 0.35s ease-out;
+  }
+  @keyframes stampIn {
+    0% { transform: rotate(-8deg) scale(1.6); opacity: 0; }
+    100% { transform: rotate(-8deg) scale(1); opacity: 1; }
+  }
+  .stamp .score { font-size: 28px; font-weight: 700; }
+  .stamp .label { font-size: 10px; letter-spacing: 0.1em; text-transform: uppercase; margin-top: 4px; }
+
+  /* Progress */
+  .progress-list { max-width: 640px; margin: 0 auto; display: flex; flex-direction: column; gap: 8px; }
+  .progress-row {
+    display: flex; align-items: center; gap: 12px;
+    padding: 10px 14px; background: var(--bg-alt); border: 1px solid var(--line); border-radius: 10px;
+  }
+  .p-subject-dot { width: 10px; height: 10px; border-radius: 50%; flex-shrink: 0; }
+  .p-info { flex: 1; }
+  .p-topic { font-size: 13.5px; font-weight: 600; }
+  .p-meta { font-size: 11.5px; color: var(--ink-soft); }
+  .p-score { font-family: 'IBM Plex Mono', monospace; font-weight: 600; font-size: 14px; }
+  .p-score.good { color: var(--green-ok); }
+  .p-score.mid { color: var(--gold); }
+  .p-score.low { color: var(--maroon); }
+
+  .loading-dots::after { content: '...'; animation: dots 1.2s steps(4,end) infinite; }
+  @keyframes dots { 0%{content:'';} 25%{content:'.';} 50%{content:'..';} 75%{content:'...';} }
+
+  ::-webkit-scrollbar { width: 8px; }
+  ::-webkit-scrollbar-thumb { background: #C7D0DD; border-radius: 4px; }
+</style>
+</head>
+<body>
+
+<div class="app" id="app"></div>
+
+<script>
+const SUBJECT_COLORS = {
+  "Mathematics": "#E0793C", "Science": "#3B6EA5", "Physics": "#3B6EA5",
+  "Chemistry": "#4C9F70", "Biology": "#7C5CBF", "English": "#C2536B",
+  "Hindi": "#B23A48", "Social Science": "#8A6D3B", "EVS": "#4C9F70",
+  "Economics": "#8A6D3B", "Accountancy": "#3B6EA5", "Business Studies": "#E0793C",
+  "History": "#8A6D3B", "Political Science": "#7C5CBF", "Geography": "#4C9F70",
+  "Sanskrit": "#B23A48",
+  "Alphabets": "#C2536B", "Numbers": "#E0793C", "Rhymes & Stories": "#7C5CBF",
+  "Colors & Shapes": "#4C9F70", "My World": "#3B6EA5"
+};
+function subjColor(s){ return SUBJECT_COLORS[s] || "#5B6B85"; }
+
+const EARLY_YEARS = ["Nursery","LKG","UKG"];
+function isEarlyYears(grade){ return EARLY_YEARS.includes(grade); }
+
+function subjectsForGrade(grade, stream){
+  if (isEarlyYears(grade)) return ["Alphabets","Numbers","Rhymes & Stories","Colors & Shapes","My World"];
+  const g = parseInt(grade,10);
+  if (g <= 5) return ["Mathematics","English","Hindi","EVS"];
+  if (g <= 8) return ["Mathematics","Science","English","Hindi","Social Science"];
+  if (g <= 10) return ["Mathematics","Science","English","Social Science","Hindi"];
+  // 11-12, stream based
+  if (stream === "Commerce") return ["Accountancy","Business Studies","Economics","English","Mathematics"];
+  if (stream === "Humanities") return ["History","Political Science","Geography","Economics","English"];
+  return ["Physics","Chemistry","Mathematics","Biology","English"]; // Science default
+}
+
+let state = {
+  profiles: [],
+  activeId: null,
+  activeSubject: null,
+  topic: "",
+  activeTab: "tutor",
+  chat: [],           // {role, text} in-memory per session
+  chatLoading: false,
+  quiz: null,         // {questions:[...]}
+  quizAnswers: {},
+  quizLoading: false,
+  quizSubmitted: false,
+  progress: {}        // profileId -> [{subject, topic, score, total, date}]
+};
+
+async function loadProfiles(){
+  try {
+    const res = await fetch('/api/profiles');
+    state.profiles = await res.json();
+  } catch(e){ state.profiles = []; }
+  const savedActive = localStorage_getActiveId();
+  state.activeId = savedActive && state.profiles.some(p=>p.id===savedActive) ? savedActive : (state.profiles[0]?.id || null);
+  if (state.activeId) await loadProgress(state.activeId);
+  render();
+}
+function localStorage_getActiveId(){
+  // Only the last-selected child is remembered in the browser tab; all real data lives on the server.
+  try { return sessionStorage.getItem('apnaTutorActiveId'); } catch(e){ return null; }
+}
+function saveActiveId(){
+  try { sessionStorage.setItem('apnaTutorActiveId', state.activeId || ''); } catch(e){}
+}
+async function addProfileToServer(p){
+  await fetch('/api/profiles', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify(p) });
+}
+async function loadProgress(profileId){
+  try {
+    const res = await fetch('/api/progress/'+encodeURIComponent(profileId));
+    state.progress[profileId] = await res.json();
+  } catch(e){ state.progress[profileId] = []; }
+}
+async function saveProgressEntry(profileId, entry){
+  try {
+    await fetch('/api/progress/'+encodeURIComponent(profileId), {
+      method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify(entry)
+    });
+  } catch(e){}
+}
+
+function activeProfile(){ return state.profiles.find(p=>p.id===state.activeId) || null; }
+function initials(name){ return name.trim().split(/\s+/).map(w=>w[0]).slice(0,2).join('').toUpperCase(); }
+function colorForProfile(id){
+  const colors = ["#E8A33D","#4C9F70","#7C5CBF","#C2536B","#3B6EA5"];
+  let h=0; for(const c of id) h = (h*31 + c.charCodeAt(0)) % colors.length;
+  return colors[h];
+}
+
+async function callClaude(systemPrompt, userText){
+  const res = await fetch("/api/messages", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ system: systemPrompt, message: userText })
+  });
+  if (!res.ok){
+    const err = await res.json().catch(()=>({}));
+    throw new Error(err.error || 'Request failed');
+  }
+  const data = await res.json();
+  return data.text || "";
+}
+
+function tutorSystemPrompt(profile, subject, topic){
+  if (isEarlyYears(profile.grade)){
+    return `You are a cheerful, extremely patient preschool teacher talking to a ${profile.grade} child (age 3-5) in India, and to the parent sitting with them, about "${subject}". Use VERY short sentences (5-8 words), simple everyday words, and lots of encouragement ("Well done!", "Great try!"). Include fun sounds, rhymes, or a tiny story where it helps. Suggest one simple hands-on activity the parent can do with the child (e.g. "count 5 spoons together"). Never use paragraphs — use short lines. Keep the whole reply under 80 words. Address the parent briefly if useful, but keep the core message speakable to a small child.`;
+  }
+  return `You are a warm, patient CBSE tutor helping a Class ${profile.grade} student in India understand "${subject}"${topic ? (', specifically the topic "'+topic+'"') : ''}. Match your explanation depth to the NCERT/CBSE syllabus for this grade. Use simple language, short paragraphs, and relatable Indian examples. When the student asks a problem to solve, guide them step by step with questions rather than just giving the final answer immediately, unless they explicitly ask for the answer. Keep replies concise (under 150 words) and encouraging.`;
+}
+
+async function sendChat(text){
+  const profile = activeProfile();
+  if (!profile || !state.activeSubject || !text.trim()) return;
+  state.chat.push({role:"user", text});
+  state.chatLoading = true;
+  render();
+  try {
+    const reply = await callClaude(tutorSystemPrompt(profile, state.activeSubject, state.topic), text);
+    state.chat.push({role:"assistant", text: reply || "Sorry, I couldn't think of a reply. Try asking again!"});
+  } catch(e){
+    state.chat.push({role:"assistant", text:"Hmm, I couldn't reach the tutor service right now. Please try again."});
+  }
+  state.chatLoading = false;
+  render();
+}
+
+async function generateQuiz(){
+  const profile = activeProfile();
+  if (!profile || !state.activeSubject) return;
+  state.quizLoading = true;
+  state.quiz = null;
+  state.quizAnswers = {};
+  state.quizSubmitted = false;
+  render();
+  const early = isEarlyYears(profile.grade);
+  const sys = early
+    ? `You generate very simple picture-style quizzes for a preschool child (age 3-5) in India, to be read aloud by a parent. Respond with ONLY valid JSON, no markdown fences, no preamble, matching exactly this schema: {"questions":[{"question":"string","options":["a","b","c","d"],"correct":0,"explanation":"short string"}]}. Rules: question text under 10 words; each option should be very short and include a relevant emoji (e.g. "3 🍎" or "Red 🔴" or "Cat 🐱"); only 3 options per question, not 4; explanations under 12 words and encouraging. Create exactly 4 questions.`
+    : `You generate CBSE-aligned multiple choice quizzes for Indian school students. Respond with ONLY valid JSON, no markdown fences, no preamble, matching exactly this schema: {"questions":[{"question":"string","options":["a","b","c","d"],"correct":0,"explanation":"short string"}]}. Create exactly 5 questions.`;
+  const user = early
+    ? `${profile.grade} child, subject: ${state.activeSubject}${state.topic ? ', topic: '+state.topic : ''}. Create a fun, very easy picture-style quiz appropriate for this age.`
+    : `Class ${profile.grade} student, subject: ${state.activeSubject}${state.topic ? ', topic: '+state.topic : ''}. Create 5 CBSE-syllabus-appropriate multiple choice questions at the right difficulty for this grade.`;
+  try {
+    let raw = await callClaude(sys, user);
+    raw = raw.replace(/```json|```/g,"").trim();
+    const parsed = JSON.parse(raw);
+    state.quiz = parsed;
+  } catch(e){
+    state.quiz = {error: true};
+  }
+  state.quizLoading = false;
+  render();
+}
+
+async function submitQuiz(){
+  const profile = activeProfile();
+  if (!profile || !state.quiz || !state.quiz.questions) return;
+  let score = 0;
+  state.quiz.questions.forEach((q,i)=>{ if(state.quizAnswers[i]===q.correct) score++; });
+  state.quizSubmitted = true;
+  const entry = {
+    subject: state.activeSubject,
+    topic: state.topic || "General",
+    score, total: state.quiz.questions.length,
+    date: new Date().toISOString().slice(0,10)
+  };
+  if (!state.progress[profile.id]) state.progress[profile.id] = [];
+  state.progress[profile.id].unshift(entry);
+  await saveProgressEntry(profile.id, entry);
+  render();
+}
+
+function el(tag, attrs, children){
+  const e = document.createElement(tag);
+  if (attrs) for (const k in attrs){
+    if (k === 'class') e.className = attrs[k];
+    else if (k === 'style') e.setAttribute('style', attrs[k]);
+    else if (k.startsWith('on')) e.addEventListener(k.slice(2), attrs[k]);
+    else e.setAttribute(k, attrs[k]);
+  }
+  (children||[]).forEach(c=>{
+    if (c === null || c === undefined) return;
+    if (typeof c === 'string') e.appendChild(document.createTextNode(c));
+    else e.appendChild(c);
+  });
+  return e;
+}
+
+function renderSidebar(){
+  const wrap = el('div', {class:'sidebar'});
+  wrap.appendChild(el('div', {class:'brand'}, ['Apna ', el('span',{},['Tutor'])]));
+  wrap.appendChild(el('div', {class:'brand-sub'}, ['CBSE home companion for the whole family']));
+
+  wrap.appendChild(el('div', {class:'section-label'}, ['Children']));
+  const profilesDiv = el('div', {class:'profiles'});
+  state.profiles.forEach(p=>{
+    const chip = el('div', {
+      class: 'profile-chip' + (p.id===state.activeId ? ' active':''),
+      onclick: async ()=>{ state.activeId = p.id; state.activeSubject=null; state.topic=""; state.chat=[]; state.quiz=null; await saveActiveId(); await loadProgress(p.id); render(); }
+    }, [
+      el('div', {class:'avatar', style:`background:${colorForProfile(p.id)}`}, [initials(p.name)]),
+      el('div', {class:'profile-meta'}, [
+        el('div', {class:'profile-name'}, [p.name]),
+        el('div', {class:'profile-grade'}, [`${isEarlyYears(p.grade) ? p.grade : 'Class '+p.grade}${p.stream ? ' · '+p.stream : ''}`])
+      ])
+    ]);
+    profilesDiv.appendChild(chip);
+  });
+  wrap.appendChild(profilesDiv);
+
+  if (state.showAddForm){
+    const form = el('div', {class:'add-form'});
+    const nameInput = el('input', {placeholder:'Child\'s name', id:'newName'});
+    const gradeSelect = el('select', {id:'newGrade'});
+    ["Nursery","LKG","UKG"].forEach(g=>gradeSelect.appendChild(el('option', {value:g}, [g])));
+    for (let g=1; g<=12; g++) gradeSelect.appendChild(el('option', {value:g}, ['Class '+g]));
+    const streamSelect = el('select', {id:'newStream'});
+    ["Science","Commerce","Humanities"].forEach(s=>streamSelect.appendChild(el('option',{value:s},[s])));
+    form.appendChild(nameInput);
+    form.appendChild(gradeSelect);
+    form.appendChild(el('div', {class:'topic-hint'}, ['Stream (only used for Class 11-12):']));
+    form.appendChild(streamSelect);
+    form.appendChild(el('button', {onclick: async ()=>{
+      const name = nameInput.value.trim();
+      if (!name) return;
+      const p = { id: 'c_'+Date.now(), name, grade: gradeSelect.value, stream: streamSelect.value };
+      state.profiles.push(p);
+      state.activeId = p.id;
+      state.showAddForm = false;
+      await addProfileToServer(p); saveActiveId();
+      state.progress[p.id] = [];
+      render();
+    }}, ['Add child']));
+    wrap.appendChild(form);
+  } else {
+    wrap.appendChild(el('button', {class:'btn-ghost', onclick: ()=>{ state.showAddForm = true; render(); }}, ['+ Add a child']));
+  }
+
+  const profile = activeProfile();
+  if (profile){
+    wrap.appendChild(el('div', {class:'section-label', style:'margin-top:6px;'}, ['Subject']));
+    const setupBlock = el('div', {class:'setup-block'});
+    const subjGrid = el('div', {class:'subject-grid'});
+    subjectsForGrade(profile.grade, profile.stream).forEach(s=>{
+      const chip = el('div', {
+        class: 'subject-chip' + (s===state.activeSubject ? ' active':''),
+        style:`background:${subjColor(s)}`,
+        onclick: ()=>{ state.activeSubject=s; state.chat=[]; state.quiz=null; state.quizSubmitted=false; render(); }
+      }, [s]);
+      subjGrid.appendChild(chip);
+    });
+    setupBlock.appendChild(subjGrid);
+
+    const early = isEarlyYears(profile.grade);
+    const topicInput = el('input', {class:'topic-input', placeholder: early ? 'Focus (optional) e.g. Letter B, counting to 5' : 'Chapter or topic (optional) e.g. Fractions', value: state.topic});
+    topicInput.addEventListener('input', (e)=>{ state.topic = e.target.value; });
+    setupBlock.appendChild(topicInput);
+    setupBlock.appendChild(el('div', {class:'topic-hint'}, [early ? 'Leave blank for general play-and-learn, or add a small focus like a letter or number.' : 'Leave blank for general help with the subject, or type a specific NCERT chapter name for focused practice.']));
+    wrap.appendChild(setupBlock);
+  }
+
+  return wrap;
+}
+
+function renderChat(){
+  const profile = activeProfile();
+  if (!profile) return el('div', {class:'empty-state'}, [el('h2',{},['Welcome!']), el('p',{},['Add your first child on the left to get started.'])]);
+  if (!state.activeSubject) return el('div', {class:'empty-state'}, [el('h2',{},['Pick a subject']), el('p',{},['Choose a subject on the left so the tutor can help '+profile.name+'.'])]);
+
+  const wrap = el('div', {});
+  const chatWindow = el('div', {class:'chat-window'});
+  if (state.chat.length === 0){
+    chatWindow.appendChild(el('div', {class:'empty-state', style:'margin:40px auto;'}, [
+      el('h2',{},['Ask me anything about '+state.activeSubject]),
+      el('p',{},['Try: "Explain this topic simply" or paste a question '+profile.name+' is stuck on.'])
+    ]));
+  }
+  state.chat.forEach(m=>{
+    const row = el('div', {class:'msg '+m.role});
+    row.appendChild(el('div', {class:'msg-avatar', style:`background:${m.role==='user'?colorForProfile(profile.id):'#1B3358'}`}, [m.role==='user'?initials(profile.name):'T']));
+    row.appendChild(el('div', {class:'bubble'}, [m.text]));
+    chatWindow.appendChild(row);
+  });
+  if (state.chatLoading){
+    const row = el('div', {class:'msg assistant'});
+    row.appendChild(el('div', {class:'msg-avatar', style:'background:#1B3358'}, ['T']));
+    row.appendChild(el('div', {class:'bubble loading-dots'}, ['Thinking']));
+    chatWindow.appendChild(row);
+  }
+  wrap.appendChild(chatWindow);
+
+  const bar = el('div', {class:'chat-input-bar'});
+  const ta = el('textarea', {placeholder:'Type a question...'});
+  ta.addEventListener('keydown', (e)=>{
+    if (e.key==='Enter' && !e.shiftKey){ e.preventDefault(); const v=ta.value; ta.value=''; if(v.trim() && !state.chatLoading) sendChat(v); }
+  });
+  const sendBtn = el('button', {class:'send-btn', disabled: state.chatLoading ? 'true':null, onclick: ()=>{ const v=ta.value; ta.value=''; if(v.trim() && !state.chatLoading) sendChat(v); }}, ['Send']);
+  bar.appendChild(ta); bar.appendChild(sendBtn);
+  wrap.appendChild(bar);
+  return wrap;
+}
+
+function renderQuiz(){
+  const profile = activeProfile();
+  if (!profile) return el('div', {class:'empty-state'}, [el('h2',{},['Welcome!']), el('p',{},['Add your first child on the left to get started.'])]);
+  if (!state.activeSubject) return el('div', {class:'empty-state'}, [el('h2',{},['Pick a subject']), el('p',{},['Choose a subject on the left to generate a practice quiz.'])]);
+
+  const wrap = el('div', {class:'quiz-shell'});
+  if (!state.quiz && !state.quizLoading){
+    wrap.appendChild(el('div', {class:'empty-state', style:'margin:40px auto 20px;'}, [
+      el('h2',{},['Practice quiz: '+state.activeSubject]),
+      el('p',{},[(isEarlyYears(profile.grade)?'4 fun picture questions':'5 CBSE-style questions')+(state.topic? ' on "'+state.topic+'"':'')+', generated for '+(isEarlyYears(profile.grade)?profile.grade:'Class '+profile.grade)+'.'])
+    ]));
+    wrap.appendChild(el('div',{style:'text-align:center;'},[el('button', {class:'quiz-start-btn', onclick: generateQuiz}, ['Generate quiz'])]));
+    return wrap;
+  }
+  if (state.quizLoading){
+    wrap.appendChild(el('div', {class:'empty-state loading-dots'}, ['Building your quiz']));
+    return wrap;
+  }
+  if (state.quiz.error){
+    wrap.appendChild(el('div', {class:'empty-state'}, [el('p',{},['Could not generate the quiz. Please try again.'])]));
+    wrap.appendChild(el('div',{style:'text-align:center;'},[el('button', {class:'quiz-start-btn', onclick: generateQuiz}, ['Retry'])]));
+    return wrap;
+  }
+
+  state.quiz.questions.forEach((q,i)=>{
+    const card = el('div', {class:'q-card'});
+    card.appendChild(el('div', {class:'q-num'}, ['Question '+(i+1)+' of '+state.quiz.questions.length]));
+    card.appendChild(el('div', {class:'q-text'}, [q.question]));
+    q.options.forEach((opt,oi)=>{
+      let cls = 'option';
+      if (state.quizAnswers[i]===oi) cls += ' selected';
+      if (state.quizSubmitted){
+        if (oi===q.correct) cls += ' correct';
+        else if (state.quizAnswers[i]===oi) cls += ' wrong';
+      }
+      const optEl = el('button', {class: cls, onclick: ()=>{ if(!state.quizSubmitted){ state.quizAnswers[i]=oi; render(); } }}, [opt]);
+      card.appendChild(optEl);
+    });
+    if (state.quizSubmitted){
+      card.appendChild(el('div', {class:'explain'}, [q.explanation||'']));
+    }
+    wrap.appendChild(card);
+  });
+
+  if (!state.quizSubmitted){
+    const allAnswered = state.quiz.questions.every((_,i)=>state.quizAnswers[i]!==undefined);
+    wrap.appendChild(el('div',{style:'text-align:center; margin-top:10px;'},[
+      el('button', {class:'quiz-start-btn', disabled: allAnswered?null:'true', style: allAnswered?'':'opacity:0.5;', onclick: submitQuiz}, ['Submit answers'])
+    ]));
+  } else {
+    const score = state.quiz.questions.filter((q,i)=>state.quizAnswers[i]===q.correct).length;
+    const total = state.quiz.questions.length;
+    wrap.appendChild(el('div', {class:'stamp-wrap'}, [
+      el('div', {class:'stamp'}, [
+        el('div', {class:'score'}, [score+' / '+total]),
+        el('div', {class:'label'}, [score/total >= 0.6 ? 'Well done' : 'Keep practicing'])
+      ])
+    ]));
+    wrap.appendChild(el('div',{style:'text-align:center;'},[
+      el('button', {class:'quiz-start-btn', onclick: generateQuiz}, ['Try another quiz'])
+    ]));
+  }
+  return wrap;
+}
+
+function renderProgress(){
+  const profile = activeProfile();
+  if (!profile) return el('div', {class:'empty-state'}, [el('h2',{},['Welcome!']), el('p',{},['Add your first child on the left to get started.'])]);
+  const list = state.progress[profile.id] || [];
+  const wrap = el('div', {class:'progress-list'});
+  if (list.length===0){
+    wrap.appendChild(el('div', {class:'empty-state'}, [el('h2',{},['No quizzes yet']), el('p',{},[profile.name+"'s practice quiz scores will show up here."])]));
+    return wrap;
+  }
+  list.forEach(entry=>{
+    const pct = entry.score/entry.total;
+    const scoreClass = pct>=0.8 ? 'good' : pct>=0.5 ? 'mid' : 'low';
+    wrap.appendChild(el('div', {class:'progress-row'}, [
+      el('div', {class:'p-subject-dot', style:`background:${subjColor(entry.subject)}`}),
+      el('div', {class:'p-info'}, [
+        el('div', {class:'p-topic'}, [entry.subject + (entry.topic && entry.topic!=='General' ? ' · '+entry.topic : '')]),
+        el('div', {class:'p-meta'}, [entry.date])
+      ]),
+      el('div', {class:'p-score '+scoreClass}, [entry.score+'/'+entry.total])
+    ]));
+  });
+  return wrap;
+}
+
+function render(){
+  const app = document.getElementById('app');
+  app.innerHTML = '';
+  app.appendChild(renderSidebar());
+
+  const main = el('div', {class:'main'});
+  const profile = activeProfile();
+  const topbar = el('div', {class:'topbar'}, [
+    el('h1', {}, [profile ? profile.name+"'s learning space" : 'Welcome to Apna Tutor']),
+    el('div', {class:'context'}, [profile && state.activeSubject ? (state.activeSubject + (state.topic? ' · '+state.topic : '')) : ''])
+  ]);
+  main.appendChild(topbar);
+
+  const tabs = el('div', {class:'tabs'});
+  [['tutor','Ask Tutor'],['quiz','Practice Quiz'],['progress','Progress']].forEach(([key,label])=>{
+    tabs.appendChild(el('div', {class:'tab'+(state.activeTab===key?' active':''), onclick: ()=>{ state.activeTab=key; render(); }}, [label]));
+  });
+  main.appendChild(tabs);
+
+  const panel = el('div', {class:'panel'});
+  if (state.activeTab==='tutor') panel.appendChild(renderChat());
+  else if (state.activeTab==='quiz') panel.appendChild(renderQuiz());
+  else panel.appendChild(renderProgress());
+  main.appendChild(panel);
+
+  app.appendChild(main);
+}
+
+loadProfiles();
+</script>
+</body>
+</html>
