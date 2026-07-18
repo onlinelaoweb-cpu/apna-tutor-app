@@ -70,6 +70,18 @@
     background: rgba(255,255,255,0.04);
     transition: background 0.15s ease;
   }
+  .profile-meta { flex: 1; }
+  .profile-remove {
+    flex-shrink: 0;
+    width: 20px; height: 20px;
+    display: flex; align-items: center; justify-content: center;
+    border-radius: 50%;
+    color: #8DA0C0;
+    font-size: 15px;
+    line-height: 1;
+    opacity: 0.6;
+  }
+  .profile-remove:hover { background: rgba(255,255,255,0.15); color: #fff; opacity: 1; }
   .profile-chip:hover { background: rgba(255,255,255,0.09); }
   .profile-chip.active {
     background: rgba(232,163,61,0.16);
@@ -318,7 +330,7 @@ const SUBJECT_COLORS = {
   "Hindi": "#B23A48", "Social Science": "#8A6D3B", "EVS": "#4C9F70",
   "Economics": "#8A6D3B", "Accountancy": "#3B6EA5", "Business Studies": "#E0793C",
   "History": "#8A6D3B", "Political Science": "#7C5CBF", "Geography": "#4C9F70",
-  "Sanskrit": "#B23A48",
+  "Sanskrit": "#B23A48", "ICT": "#2E9C9C",
   "Alphabets": "#C2536B", "Numbers": "#E0793C", "Rhymes & Stories": "#7C5CBF",
   "Colors & Shapes": "#4C9F70", "My World": "#3B6EA5"
 };
@@ -330,9 +342,9 @@ function isEarlyYears(grade){ return EARLY_YEARS.includes(grade); }
 function subjectsForGrade(grade, stream){
   if (isEarlyYears(grade)) return ["Alphabets","Numbers","Rhymes & Stories","Colors & Shapes","My World"];
   const g = parseInt(grade,10);
-  if (g <= 5) return ["Mathematics","English","Hindi","EVS"];
-  if (g <= 8) return ["Mathematics","Science","English","Hindi","Social Science"];
-  if (g <= 10) return ["Mathematics","Science","English","Social Science","Hindi"];
+  if (g <= 5) return ["Mathematics","English","Hindi","EVS","ICT"];
+  if (g <= 8) return ["Mathematics","Science","English","Hindi","Social Science","ICT"];
+  if (g <= 10) return ["Mathematics","Science","English","Social Science","Hindi","ICT"];
   // 11-12, stream based
   if (stream === "Commerce") return ["Accountancy","Business Studies","Economics","English","Mathematics"];
   if (stream === "Humanities") return ["History","Political Science","Geography","Economics","English"];
@@ -510,7 +522,19 @@ function renderSidebar(){
       el('div', {class:'profile-meta'}, [
         el('div', {class:'profile-name'}, [p.name]),
         el('div', {class:'profile-grade'}, [`${isEarlyYears(p.grade) ? p.grade : 'Class '+p.grade}${p.stream ? ' · '+p.stream : ''}`])
-      ])
+      ]),
+      el('div', {
+        class:'profile-remove', title:'Remove '+p.name,
+        onclick: async (e)=>{
+          e.stopPropagation();
+          if (!confirm('Remove '+p.name+'? This deletes their quiz history too.')) return;
+          await fetch('/api/profiles/'+encodeURIComponent(p.id), { method:'DELETE' });
+          state.profiles = state.profiles.filter(x=>x.id!==p.id);
+          delete state.progress[p.id];
+          if (state.activeId===p.id){ state.activeId = state.profiles[0]?.id || null; state.activeSubject=null; state.chat=[]; state.quiz=null; saveActiveId(); if(state.activeId) await loadProgress(state.activeId); }
+          render();
+        }
+      }, ['×'])
     ]);
     profilesDiv.appendChild(chip);
   });
@@ -531,7 +555,9 @@ function renderSidebar(){
     form.appendChild(el('button', {onclick: async ()=>{
       const name = nameInput.value.trim();
       if (!name) return;
-      const p = { id: 'c_'+Date.now(), name, grade: gradeSelect.value, stream: streamSelect.value };
+      const selectedGrade = gradeSelect.value;
+      const isSenior = selectedGrade === "11" || selectedGrade === "12";
+      const p = { id: 'c_'+Date.now(), name, grade: selectedGrade, stream: isSenior ? streamSelect.value : null };
       state.profiles.push(p);
       state.activeId = p.id;
       state.showAddForm = false;
