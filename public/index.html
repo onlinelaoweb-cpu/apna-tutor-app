@@ -639,14 +639,41 @@ async function callClaude(systemPrompt, userText, image){
   return data.text || "";
 }
 
+// Strips markdown syntax so text doesn't show (or get spoken) with raw symbols like ** or #
+function cleanForDisplay(text){
+  if (!text) return text;
+  return text
+    .replace(/\*\*(.*?)\*\*/g, '$1')
+    .replace(/\*(.*?)\*/g, '$1')
+    .replace(/__(.*?)__/g, '$1')
+    .replace(/(?<!\w)_(.*?)_(?!\w)/g, '$1')
+    .replace(/`{1,3}([^`]*)`{1,3}/g, '$1')
+    .replace(/^#{1,6}\s*/gm, '')
+    .replace(/^\s*[-*+]\s+/gm, '• ')
+    .replace(/\n{3,}/g, '\n\n')
+    .trim();
+}
+
+// Strips everything TTS would otherwise read aloud as a symbol name (emojis, markdown, stray punctuation)
+function cleanForSpeech(text){
+  if (!text) return text;
+  let t = cleanForDisplay(text);
+  t = t.replace(/[\u{1F000}-\u{1FFFF}\u{2600}-\u{27BF}\u{2B00}-\u{2BFF}\u{2190}-\u{21FF}\u{FE0F}\u{200D}]/gu, '');
+  t = t.replace(/[#*_~`^|•]/g, '');
+  t = t.replace(/\s[-–—]\s/g, ', ');
+  t = t.replace(/\n{2,}/g, '. ').replace(/\n/g, ' ').replace(/\s{2,}/g, ' ').trim();
+  return t;
+}
+
 function tutorSystemPrompt(profile, subject, topic){
   const langLine = state.ttsLang === 'hi'
     ? ' Respond entirely in warm, simple Hindi using Devanagari script (not Roman/Hinglish transliteration). Keep proper nouns, numbers, and technical terms without a common Hindi equivalent in English, but write everything else in Hindi.'
     : '';
+  const styleLine = ' Write the way a real teacher would speak out loud in the room, in natural flowing sentences. Do not use any markdown formatting: no asterisks, no hash symbols, no bullet points or numbered lists, no dashes as list markers, no emojis, no backticks. If you want to list a few things, weave them into a sentence with words like "first," "next," and "also" instead of a list. Every word you write may be read aloud by text-to-speech, so it must sound natural when spoken, not like a written document.';
   if (isEarlyYears(profile.grade)){
-    return `You are a cheerful, extremely patient preschool teacher talking to a ${profile.grade} child (age 3-5) in India, and to the parent sitting with them, about "${subject}". Use VERY short sentences (5-8 words), simple everyday words, and lots of encouragement ("Well done!", "Great try!"). Include fun sounds, rhymes, or a tiny story where it helps. Suggest one simple hands-on activity the parent can do with the child (e.g. "count 5 spoons together"). Never use paragraphs — use short lines. Keep the whole reply under 80 words. Address the parent briefly if useful, but keep the core message speakable to a small child.${langLine}`;
+    return `You are a cheerful, extremely patient preschool teacher talking to a ${profile.grade} child (age 3-5) in India, and to the parent sitting with them, about "${subject}". Use VERY short sentences (5-8 words), simple everyday words, and lots of encouragement ("Well done!", "Great try!"). Include fun sounds, rhymes, or a tiny story where it helps. Suggest one simple hands-on activity the parent can do with the child (e.g. "count 5 spoons together"). Never use paragraphs — use short lines. Keep the whole reply under 80 words. Address the parent briefly if useful, but keep the core message speakable to a small child.${styleLine}${langLine}`;
   }
-  return `You are a warm, patient CBSE tutor helping a Class ${profile.grade} student in India understand "${subject}"${topic ? (', specifically the topic "'+topic+'"') : ''}. Match your explanation depth to the NCERT/CBSE syllabus for this grade. Use simple language, short paragraphs, and relatable Indian examples. When the student asks a problem to solve, guide them step by step with questions rather than just giving the final answer immediately, unless they explicitly ask for the answer. Keep replies concise (under 150 words) and encouraging.${langLine}`;
+  return `You are a warm, patient CBSE tutor helping a Class ${profile.grade} student in India understand "${subject}"${topic ? (', specifically the topic "'+topic+'"') : ''}. Match your explanation depth to the NCERT/CBSE syllabus for this grade. Use simple language, short paragraphs, and relatable Indian examples. When the student asks a problem to solve, guide them step by step with questions rather than just giving the final answer immediately, unless they explicitly ask for the answer. Keep replies concise (under 150 words) and encouraging.${styleLine}${langLine}`;
 }
 
 async function sendChat(text){
@@ -663,9 +690,10 @@ async function sendChat(text){
       text || "Please look at this photo and help me understand it.",
       img ? { mediaType: img.mediaType, data: img.data } : null
     );
-    const finalReply = reply || "Sorry, I couldn't think of a reply. Try asking again!";
+    const rawReply = reply || "Sorry, I couldn't think of a reply. Try asking again!";
+    const finalReply = cleanForDisplay(rawReply);
     state.chat.push({role:"assistant", text: finalReply});
-    if (shouldAutoSpeak(profile)) speak(finalReply);
+    if (shouldAutoSpeak(profile)) speak(cleanForSpeech(rawReply));
   } catch(e){
     state.chat.push({role:"assistant", text:"Hmm, I couldn't reach the tutor service right now. Please try again."});
   }
@@ -878,7 +906,7 @@ function renderChat(){
     const col = el('div', {});
     col.appendChild(bubble);
     if (m.role==='assistant'){
-      col.appendChild(el('button', {class:'speak-btn', onclick:()=>speak(m.text)}, ['🔊 Play']));
+      col.appendChild(el('button', {class:'speak-btn', onclick:()=>speak(cleanForSpeech(m.text))}, ['🔊 Play']));
     }
     row.appendChild(col);
     chatWindow.appendChild(row);
