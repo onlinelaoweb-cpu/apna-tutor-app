@@ -18,7 +18,7 @@ const path = require('path');
 const db = require('./db');
 
 const app = express();
-app.use(express.json({ limit: '1mb' }));
+app.use(express.json({ limit: '10mb' }));
 
 // ---- Profiles ----
 app.get('/api/profiles', (req, res) => {
@@ -59,8 +59,18 @@ app.post('/api/messages', async (req, res) => {
   if (!process.env.ANTHROPIC_API_KEY) {
     return res.status(500).json({ error: 'Server is missing ANTHROPIC_API_KEY. Set it in your environment variables.' });
   }
-  const { system, message } = req.body || {};
-  if (!message) return res.status(400).json({ error: 'message is required' });
+  const { system, message, image } = req.body || {};
+  if (!message && !image) return res.status(400).json({ error: 'message or image is required' });
+
+  let content;
+  if (image && image.data && image.mediaType) {
+    content = [
+      { type: 'image', source: { type: 'base64', media_type: image.mediaType, data: image.data } },
+      { type: 'text', text: message || 'Please look at this and help me understand it.' },
+    ];
+  } else {
+    content = message;
+  }
 
   try {
     const upstream = await fetch('https://api.anthropic.com/v1/messages', {
@@ -74,7 +84,7 @@ app.post('/api/messages', async (req, res) => {
         model: 'claude-sonnet-4-6',
         max_tokens: 1000,
         system: system || undefined,
-        messages: [{ role: 'user', content: message }],
+        messages: [{ role: 'user', content }],
       }),
     });
     const data = await upstream.json();

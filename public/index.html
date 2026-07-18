@@ -4,6 +4,13 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Apna Tutor — CBSE Home Companion</title>
+<link rel="manifest" href="/manifest.json">
+<meta name="theme-color" content="#1B3358">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Apna Tutor">
+<link rel="apple-touch-icon" href="/icons/apple-touch-icon.png">
+<link rel="icon" type="image/png" sizes="192x192" href="/icons/icon-192.png">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Roboto+Slab:wght@600;700&family=Inter:wght@400;500;600;700&family=IBM+Plex+Mono:wght@500;600&display=swap" rel="stylesheet">
 <style>
@@ -49,6 +56,11 @@
   }
   .brand span { color: var(--gold); }
   .brand-sub { font-size: 12px; color: #A9B7CE; margin-top: 2px; }
+  .install-btn {
+    background: var(--gold); color: #2B1B05; border: none;
+    padding: 8px 12px; border-radius: 8px; font-weight: 700; font-size: 12.5px;
+    cursor: pointer; margin-top: 8px; width: fit-content;
+  }
 
   .profiles { display: flex; flex-direction: column; gap: 8px; }
   .section-label {
@@ -255,6 +267,52 @@
     padding: 0 18px; border-radius: 10px; font-weight: 600; cursor: pointer;
   }
   .send-btn:disabled { opacity: 0.5; cursor: default; }
+  .icon-btn {
+    background: var(--bg-alt); border: 1px solid var(--line);
+    width: 44px; height: 44px; border-radius: 10px;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 18px; cursor: pointer; flex-shrink: 0;
+  }
+  .icon-btn.listening { background: var(--maroon); border-color: var(--maroon); animation: pulseMic 1s infinite; }
+  @keyframes pulseMic { 0%,100% { box-shadow: 0 0 0 0 rgba(178,58,72,0.5); } 50% { box-shadow: 0 0 0 8px rgba(178,58,72,0); } }
+  .speak-btn {
+    background: none; border: none; cursor: pointer;
+    font-size: 13px; color: var(--ink-soft); margin-top: 6px; padding: 0;
+  }
+  .speak-btn:hover { color: var(--navy); }
+  .image-preview-chip {
+    max-width: 720px; margin: 0 auto 6px;
+    display: flex; align-items: center; gap: 8px;
+    background: var(--bg-alt); border: 1px solid var(--line);
+    border-radius: 10px; padding: 6px 10px; font-size: 12.5px; color: var(--ink-soft);
+  }
+  .image-preview-chip img { width: 34px; height: 34px; object-fit: cover; border-radius: 6px; }
+  .image-preview-chip .remove-chip { margin-left: auto; cursor: pointer; color: var(--maroon); font-weight: 700; }
+  .msg-image { max-width: 220px; border-radius: 10px; margin-top: 6px; display: block; }
+
+  /* Talking teacher avatar */
+  .teacher-wrap { text-align: center; margin: 10px 0 20px; }
+  .avatar-teacher {
+    width: 84px; height: 84px; border-radius: 50%;
+    margin: 0 auto; position: relative;
+    display: flex; flex-direction: column; align-items: center; justify-content: center;
+    box-shadow: 0 3px 10px rgba(0,0,0,0.12);
+    transition: transform 0.2s ease;
+  }
+  .avatar-teacher.talking { transform: scale(1.04); }
+  .avatar-eyes { display: flex; gap: 16px; }
+  .avatar-eye { width: 9px; height: 9px; border-radius: 50%; background: #1B2A41; animation: avatarBlink 4.5s infinite; }
+  .avatar-mouth { width: 24px; height: 5px; background: #1B2A41; border-radius: 4px; margin-top: 12px; transition: all 0.12s ease; }
+  .avatar-teacher.talking .avatar-mouth { animation: avatarTalk 0.32s infinite ease-in-out; }
+  @keyframes avatarTalk { 0%,100% { height: 5px; width: 24px; border-radius: 4px; } 50% { height: 14px; width: 17px; border-radius: 50%; } }
+  @keyframes avatarBlink { 0%, 90%, 100% { transform: scaleY(1); } 95% { transform: scaleY(0.15); } }
+  .teacher-name { font-size: 12.5px; color: var(--ink-soft); margin-top: 8px; font-weight: 600; }
+  .autospeak-toggle {
+    display: inline-flex; align-items: center; gap: 6px;
+    font-size: 12px; color: var(--ink-soft); cursor: pointer;
+    margin-top: 6px;
+  }
+  .autospeak-toggle input { cursor: pointer; }
 
   /* Quiz */
   .quiz-shell { max-width: 620px; margin: 0 auto; }
@@ -357,14 +415,68 @@ let state = {
   activeSubject: null,
   topic: "",
   activeTab: "tutor",
-  chat: [],           // {role, text} in-memory per session
+  chat: [],           // {role, text, image?} in-memory per session
   chatLoading: false,
   quiz: null,         // {questions:[...]}
   quizAnswers: {},
   quizLoading: false,
   quizSubmitted: false,
-  progress: {}        // profileId -> [{subject, topic, score, total, date}]
+  progress: {},       // profileId -> [{subject, topic, score, total, date}]
+  listening: false,
+  pendingImage: null,  // {mediaType, data, previewUrl}
+  talking: false,
+  autoSpeak: null,     // null = use age-based default; true/false = explicit user choice
+  canInstall: false
 };
+
+function shouldAutoSpeak(profile){
+  return state.autoSpeak !== null ? state.autoSpeak : isEarlyYears(profile.grade);
+}
+
+function speak(text){
+  if (!('speechSynthesis' in window) || !text) return;
+  window.speechSynthesis.cancel();
+  const utter = new SpeechSynthesisUtterance(text);
+  utter.rate = 0.95;
+  utter.onstart = ()=>{ state.talking = true; updateAvatarClass(); };
+  utter.onend = ()=>{ state.talking = false; updateAvatarClass(); };
+  utter.onerror = ()=>{ state.talking = false; updateAvatarClass(); };
+  window.speechSynthesis.speak(utter);
+}
+function stopSpeaking(){
+  if ('speechSynthesis' in window) window.speechSynthesis.cancel();
+  state.talking = false; updateAvatarClass();
+}
+function updateAvatarClass(){
+  const av = document.getElementById('teacherAvatar');
+  if (av) av.classList.toggle('talking', state.talking);
+}
+
+function startListening(onResult){
+  const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
+  if (!SR){ alert('Voice input is not supported in this browser. Try Chrome or Edge.'); return; }
+  const recog = new SR();
+  recog.lang = 'en-IN';
+  recog.interimResults = false;
+  recog.maxAlternatives = 1;
+  recog.onresult = (e)=>{ const text = e.results[0][0].transcript; onResult(text); };
+  recog.onerror = ()=>{ state.listening = false; render(); };
+  recog.onend = ()=>{ state.listening = false; render(); };
+  state.listening = true; render();
+  recog.start();
+}
+
+function handleImageFile(file){
+  if (!file || !file.type.startsWith('image/')) return;
+  const reader = new FileReader();
+  reader.onload = ()=>{
+    const dataUrl = reader.result;
+    const base64 = dataUrl.split(',')[1];
+    state.pendingImage = { mediaType: file.type, data: base64, previewUrl: dataUrl };
+    render();
+  };
+  reader.readAsDataURL(file);
+}
 
 async function loadProfiles(){
   try {
@@ -408,11 +520,11 @@ function colorForProfile(id){
   return colors[h];
 }
 
-async function callClaude(systemPrompt, userText){
+async function callClaude(systemPrompt, userText, image){
   const res = await fetch("/api/messages", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ system: systemPrompt, message: userText })
+    body: JSON.stringify({ system: systemPrompt, message: userText, image: image || undefined })
   });
   if (!res.ok){
     const err = await res.json().catch(()=>({}));
@@ -431,13 +543,21 @@ function tutorSystemPrompt(profile, subject, topic){
 
 async function sendChat(text){
   const profile = activeProfile();
-  if (!profile || !state.activeSubject || !text.trim()) return;
-  state.chat.push({role:"user", text});
+  const img = state.pendingImage;
+  if (!profile || !state.activeSubject || (!text.trim() && !img)) return;
+  state.chat.push({role:"user", text, image: img ? img.previewUrl : null});
+  state.pendingImage = null;
   state.chatLoading = true;
   render();
   try {
-    const reply = await callClaude(tutorSystemPrompt(profile, state.activeSubject, state.topic), text);
-    state.chat.push({role:"assistant", text: reply || "Sorry, I couldn't think of a reply. Try asking again!"});
+    const reply = await callClaude(
+      tutorSystemPrompt(profile, state.activeSubject, state.topic),
+      text || "Please look at this photo and help me understand it.",
+      img ? { mediaType: img.mediaType, data: img.data } : null
+    );
+    const finalReply = reply || "Sorry, I couldn't think of a reply. Try asking again!";
+    state.chat.push({role:"assistant", text: finalReply});
+    if (shouldAutoSpeak(profile)) speak(finalReply);
   } catch(e){
     state.chat.push({role:"assistant", text:"Hmm, I couldn't reach the tutor service right now. Please try again."});
   }
@@ -510,13 +630,16 @@ function renderSidebar(){
   const wrap = el('div', {class:'sidebar'});
   wrap.appendChild(el('div', {class:'brand'}, ['Apna ', el('span',{},['Tutor'])]));
   wrap.appendChild(el('div', {class:'brand-sub'}, ['CBSE home companion for the whole family']));
+  if (state.canInstall){
+    wrap.appendChild(el('button', {class:'install-btn', onclick: promptInstall}, ['⬇ Install app']));
+  }
 
   wrap.appendChild(el('div', {class:'section-label'}, ['Children']));
   const profilesDiv = el('div', {class:'profiles'});
   state.profiles.forEach(p=>{
     const chip = el('div', {
       class: 'profile-chip' + (p.id===state.activeId ? ' active':''),
-      onclick: async ()=>{ state.activeId = p.id; state.activeSubject=null; state.topic=""; state.chat=[]; state.quiz=null; await saveActiveId(); await loadProgress(p.id); render(); }
+      onclick: async ()=>{ stopSpeaking(); state.activeId = p.id; state.activeSubject=null; state.topic=""; state.chat=[]; state.quiz=null; state.pendingImage=null; await saveActiveId(); await loadProgress(p.id); render(); }
     }, [
       el('div', {class:'avatar', style:`background:${colorForProfile(p.id)}`}, [initials(p.name)]),
       el('div', {class:'profile-meta'}, [
@@ -531,7 +654,7 @@ function renderSidebar(){
           await fetch('/api/profiles/'+encodeURIComponent(p.id), { method:'DELETE' });
           state.profiles = state.profiles.filter(x=>x.id!==p.id);
           delete state.progress[p.id];
-          if (state.activeId===p.id){ state.activeId = state.profiles[0]?.id || null; state.activeSubject=null; state.chat=[]; state.quiz=null; saveActiveId(); if(state.activeId) await loadProgress(state.activeId); }
+          if (state.activeId===p.id){ stopSpeaking(); state.activeId = state.profiles[0]?.id || null; state.activeSubject=null; state.chat=[]; state.quiz=null; state.pendingImage=null; saveActiveId(); if(state.activeId) await loadProgress(state.activeId); }
           render();
         }
       }, ['×'])
@@ -579,7 +702,7 @@ function renderSidebar(){
       const chip = el('div', {
         class: 'subject-chip' + (s===state.activeSubject ? ' active':''),
         style:`background:${subjColor(s)}`,
-        onclick: ()=>{ state.activeSubject=s; state.chat=[]; state.quiz=null; state.quizSubmitted=false; render(); }
+        onclick: ()=>{ stopSpeaking(); state.activeSubject=s; state.chat=[]; state.quiz=null; state.quizSubmitted=false; state.pendingImage=null; render(); }
       }, [s]);
       subjGrid.appendChild(chip);
     });
@@ -602,34 +725,88 @@ function renderChat(){
   if (!state.activeSubject) return el('div', {class:'empty-state'}, [el('h2',{},['Pick a subject']), el('p',{},['Choose a subject on the left so the tutor can help '+profile.name+'.'])]);
 
   const wrap = el('div', {});
+  const subjectHex = subjColor(state.activeSubject);
+
+  // Talking teacher avatar
+  const teacherWrap = el('div', {class:'teacher-wrap'});
+  const avatar = el('div', {id:'teacherAvatar', class:'avatar-teacher'+(state.talking?' talking':''), style:`background:${subjectHex}22; border:2px solid ${subjectHex};`}, [
+    el('div', {class:'avatar-eyes'}, [el('div',{class:'avatar-eye'}), el('div',{class:'avatar-eye'})]),
+    el('div', {class:'avatar-mouth'})
+  ]);
+  teacherWrap.appendChild(avatar);
+  teacherWrap.appendChild(el('div', {class:'teacher-name'}, ['Your '+state.activeSubject+' Tutor']));
+  const speakLabel = el('label', {class:'autospeak-toggle'});
+  const speakCheckbox = el('input', {type:'checkbox'});
+  speakCheckbox.checked = shouldAutoSpeak(profile);
+  speakCheckbox.addEventListener('change', (e)=>{ state.autoSpeak = e.target.checked; if(!e.target.checked) stopSpeaking(); });
+  speakLabel.appendChild(speakCheckbox);
+  speakLabel.appendChild(document.createTextNode('🔊 Read answers aloud'));
+  teacherWrap.appendChild(speakLabel);
+  wrap.appendChild(teacherWrap);
+
   const chatWindow = el('div', {class:'chat-window'});
   if (state.chat.length === 0){
-    chatWindow.appendChild(el('div', {class:'empty-state', style:'margin:40px auto;'}, [
+    chatWindow.appendChild(el('div', {class:'empty-state', style:'margin:10px auto 40px;'}, [
       el('h2',{},['Ask me anything about '+state.activeSubject]),
-      el('p',{},['Try: "Explain this topic simply" or paste a question '+profile.name+' is stuck on.'])
+      el('p',{},['Type, speak with the mic, or attach a photo of a question '+profile.name+' is stuck on.'])
     ]));
   }
   state.chat.forEach(m=>{
     const row = el('div', {class:'msg '+m.role});
-    row.appendChild(el('div', {class:'msg-avatar', style:`background:${m.role==='user'?colorForProfile(profile.id):'#1B3358'}`}, [m.role==='user'?initials(profile.name):'T']));
-    row.appendChild(el('div', {class:'bubble'}, [m.text]));
+    row.appendChild(el('div', {class:'msg-avatar', style:`background:${m.role==='user'?colorForProfile(profile.id):subjectHex}`}, [m.role==='user'?initials(profile.name):'T']));
+    const bubbleChildren = [m.text];
+    const bubble = el('div', {class:'bubble'}, [m.text]);
+    if (m.image){
+      const img = el('img', {class:'msg-image', src:m.image});
+      bubble.appendChild(img);
+    }
+    const col = el('div', {});
+    col.appendChild(bubble);
+    if (m.role==='assistant'){
+      col.appendChild(el('button', {class:'speak-btn', onclick:()=>speak(m.text)}, ['🔊 Play']));
+    }
+    row.appendChild(col);
     chatWindow.appendChild(row);
   });
   if (state.chatLoading){
     const row = el('div', {class:'msg assistant'});
-    row.appendChild(el('div', {class:'msg-avatar', style:'background:#1B3358'}, ['T']));
+    row.appendChild(el('div', {class:'msg-avatar', style:`background:${subjectHex}`}, ['T']));
     row.appendChild(el('div', {class:'bubble loading-dots'}, ['Thinking']));
     chatWindow.appendChild(row);
   }
   wrap.appendChild(chatWindow);
 
+  if (state.pendingImage){
+    const chip = el('div', {class:'image-preview-chip'}, [
+      el('img', {src: state.pendingImage.previewUrl}),
+      el('span', {}, ['Photo attached']),
+      el('span', {class:'remove-chip', onclick:()=>{ state.pendingImage=null; render(); }}, ['Remove'])
+    ]);
+    wrap.appendChild(chip);
+  }
+
   const bar = el('div', {class:'chat-input-bar'});
+
+  const fileInput = el('input', {type:'file', accept:'image/*', style:'display:none;'});
+  fileInput.addEventListener('change', (e)=>{ if(e.target.files[0]) handleImageFile(e.target.files[0]); e.target.value=''; });
+  const attachBtn = el('button', {class:'icon-btn', title:'Attach a photo', onclick:()=>fileInput.click()}, ['📎']);
+
+  const micBtn = el('button', {class:'icon-btn'+(state.listening?' listening':''), title:'Speak your question', onclick:()=>{
+    if (state.listening) return;
+    startListening((text)=>{ if(text && text.trim() && !state.chatLoading) sendChat(text); });
+  }}, [state.listening ? '●' : '🎤']);
+
   const ta = el('textarea', {placeholder:'Type a question...'});
   ta.addEventListener('keydown', (e)=>{
-    if (e.key==='Enter' && !e.shiftKey){ e.preventDefault(); const v=ta.value; ta.value=''; if(v.trim() && !state.chatLoading) sendChat(v); }
+    if (e.key==='Enter' && !e.shiftKey){ e.preventDefault(); const v=ta.value; ta.value=''; if((v.trim()||state.pendingImage) && !state.chatLoading) sendChat(v); }
   });
-  const sendBtn = el('button', {class:'send-btn', disabled: state.chatLoading ? 'true':null, onclick: ()=>{ const v=ta.value; ta.value=''; if(v.trim() && !state.chatLoading) sendChat(v); }}, ['Send']);
-  bar.appendChild(ta); bar.appendChild(sendBtn);
+  const sendBtn = el('button', {class:'send-btn', disabled: state.chatLoading ? 'true':null, onclick: ()=>{ const v=ta.value; ta.value=''; if((v.trim()||state.pendingImage) && !state.chatLoading) sendChat(v); }}, ['Send']);
+
+  bar.appendChild(fileInput);
+  bar.appendChild(attachBtn);
+  bar.appendChild(micBtn);
+  bar.appendChild(ta);
+  bar.appendChild(sendBtn);
   wrap.appendChild(bar);
   return wrap;
 }
@@ -752,6 +929,35 @@ function render(){
 }
 
 loadProfiles();
+
+// ---- PWA: service worker + install prompt ----
+if ('serviceWorker' in navigator) {
+  window.addEventListener('load', () => {
+    navigator.serviceWorker.register('/sw.js').catch(() => {});
+  });
+}
+
+let deferredInstallPrompt = null;
+window.addEventListener('beforeinstallprompt', (e) => {
+  e.preventDefault();
+  deferredInstallPrompt = e;
+  state.canInstall = true;
+  render();
+});
+window.addEventListener('appinstalled', () => {
+  deferredInstallPrompt = null;
+  state.canInstall = false;
+  render();
+});
+function promptInstall(){
+  if (!deferredInstallPrompt) return;
+  deferredInstallPrompt.prompt();
+  deferredInstallPrompt.userChoice.finally(() => {
+    deferredInstallPrompt = null;
+    state.canInstall = false;
+    render();
+  });
+}
 </script>
 </body>
 </html>
