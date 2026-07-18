@@ -36,6 +36,14 @@
     -webkit-font-smoothing: antialiased;
   }
   .app { display: flex; min-height: 100vh; }
+  .sidebar-backdrop { display: none; }
+  .menu-btn {
+    display: none;
+    width: 34px; height: 34px; border-radius: 8px;
+    align-items: center; justify-content: center;
+    background: var(--bg-alt); border: 1px solid var(--line);
+    cursor: pointer; font-size: 18px; flex-shrink: 0;
+  }
 
   /* ---------- Sidebar ---------- */
   .sidebar {
@@ -307,6 +315,12 @@
   @keyframes avatarTalk { 0%,100% { height: 5px; width: 24px; border-radius: 4px; } 50% { height: 14px; width: 17px; border-radius: 50%; } }
   @keyframes avatarBlink { 0%, 90%, 100% { transform: scaleY(1); } 95% { transform: scaleY(0.15); } }
   .teacher-name { font-size: 12.5px; color: var(--ink-soft); margin-top: 8px; font-weight: 600; }
+  .lang-toggle { display: flex; justify-content: center; gap: 6px; margin-top: 10px; }
+  .lang-btn {
+    padding: 6px 14px; border-radius: 999px; font-size: 12.5px; font-weight: 600;
+    border: 1.5px solid var(--line); background: #fff; color: var(--ink-soft); cursor: pointer;
+  }
+  .lang-btn.active { background: var(--navy); border-color: var(--navy); color: #fff; }
   .autospeak-toggle {
     display: inline-flex; align-items: center; gap: 6px;
     font-size: 12px; color: var(--ink-soft); cursor: pointer;
@@ -375,6 +389,63 @@
 
   ::-webkit-scrollbar { width: 8px; }
   ::-webkit-scrollbar-thumb { background: #C7D0DD; border-radius: 4px; }
+
+  /* ---------- Mobile ---------- */
+  @media (max-width: 820px) {
+    .menu-btn { display: flex; }
+
+    .sidebar {
+      position: fixed;
+      top: 0; left: 0; bottom: 0;
+      width: 82vw;
+      max-width: 320px;
+      z-index: 50;
+      transform: translateX(-100%);
+      transition: transform 0.25s ease;
+      overflow-y: auto;
+      box-shadow: 4px 0 24px rgba(0,0,0,0.25);
+    }
+    .sidebar.open { transform: translateX(0); }
+
+    .sidebar-backdrop.open {
+      display: block;
+      position: fixed; inset: 0;
+      background: rgba(10,16,28,0.45);
+      z-index: 45;
+    }
+
+    .main { width: 100%; }
+
+    .topbar { padding: 12px 14px; gap: 10px; }
+    .topbar h1 { font-size: 15.5px; }
+    .topbar .context { font-size: 11.5px; }
+
+    .tabs { padding: 8px 10px 0; gap: 2px; overflow-x: auto; -webkit-overflow-scrolling: touch; }
+    .tab { padding: 8px 10px; font-size: 12.5px; white-space: nowrap; }
+
+    .panel { padding: 14px; }
+
+    .chat-window { max-width: 100%; gap: 10px; margin-bottom: 76px; }
+    .bubble { max-width: 78vw; font-size: 14px; }
+    .chat-input-bar { max-width: 100%; flex-wrap: nowrap; }
+    .chat-input-bar textarea { font-size: 16px; } /* 16px avoids iOS auto-zoom on focus */
+    .icon-btn { width: 40px; height: 40px; font-size: 16px; }
+    .send-btn { padding: 0 12px; font-size: 13px; }
+
+    .msg-image { max-width: 60vw; }
+
+    .avatar-teacher { width: 68px; height: 68px; }
+
+    .quiz-shell { max-width: 100%; }
+    .q-card { padding: 13px 14px; }
+    .stamp { width: 120px; height: 120px; }
+    .stamp .score { font-size: 22px; }
+
+    .progress-list { max-width: 100%; }
+    .progress-row { padding: 9px 12px; flex-wrap: wrap; }
+
+    .lang-toggle { flex-wrap: wrap; }
+  }
 </style>
 </head>
 <body>
@@ -426,18 +497,52 @@ let state = {
   pendingImage: null,  // {mediaType, data, previewUrl}
   talking: false,
   autoSpeak: null,     // null = use age-based default; true/false = explicit user choice
-  canInstall: false
+  canInstall: false,
+  sidebarOpen: false,
+  ttsLang: 'en'         // 'en' or 'hi' - controls both the tutor's reply language and voice
 };
 
 function shouldAutoSpeak(profile){
   return state.autoSpeak !== null ? state.autoSpeak : isEarlyYears(profile.grade);
 }
 
+// Voices load asynchronously in most browsers - cache them once available.
+let cachedVoices = [];
+function primeVoices(){
+  if (!('speechSynthesis' in window)) return;
+  cachedVoices = window.speechSynthesis.getVoices();
+  window.speechSynthesis.onvoiceschanged = () => { cachedVoices = window.speechSynthesis.getVoices(); };
+}
+
+function pickVoice(lang){
+  const voices = cachedVoices.length ? cachedVoices : (('speechSynthesis' in window) ? window.speechSynthesis.getVoices() : []);
+  if (!voices.length) return null;
+  const prefix = lang === 'hi' ? 'hi' : 'en';
+  let candidates = voices.filter(v => v.lang.toLowerCase().startsWith(prefix));
+  if (!candidates.length) candidates = voices.filter(v => v.lang.toLowerCase().startsWith('en'));
+  if (!candidates.length) return voices[0];
+  // Prefer voices that tend to sound more natural (not a guarantee - depends on the device/OS).
+  const scored = candidates.map(v => {
+    let score = 0;
+    if (/natural|neural|premium|enhanced|wavenet/i.test(v.name)) score += 5;
+    if (/google/i.test(v.name)) score += 3;
+    if (lang === 'en' && /india|hindi/i.test(v.name + ' ' + v.lang)) score += 1;
+    if (v.localService === false) score += 1;
+    return { v, score };
+  });
+  scored.sort((a, b) => b.score - a.score);
+  return scored[0].v;
+}
+
 function speak(text){
   if (!('speechSynthesis' in window) || !text) return;
   window.speechSynthesis.cancel();
   const utter = new SpeechSynthesisUtterance(text);
-  utter.rate = 0.95;
+  const voice = pickVoice(state.ttsLang);
+  if (voice) utter.voice = voice;
+  utter.lang = voice ? voice.lang : (state.ttsLang === 'hi' ? 'hi-IN' : 'en-IN');
+  utter.rate = 0.96;
+  utter.pitch = 1.02;
   utter.onstart = ()=>{ state.talking = true; updateAvatarClass(); };
   utter.onend = ()=>{ state.talking = false; updateAvatarClass(); };
   utter.onerror = ()=>{ state.talking = false; updateAvatarClass(); };
@@ -456,7 +561,7 @@ function startListening(onResult){
   const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
   if (!SR){ alert('Voice input is not supported in this browser. Try Chrome or Edge.'); return; }
   const recog = new SR();
-  recog.lang = 'en-IN';
+  recog.lang = state.ttsLang === 'hi' ? 'hi-IN' : 'en-IN';
   recog.interimResults = false;
   recog.maxAlternatives = 1;
   recog.onresult = (e)=>{ const text = e.results[0][0].transcript; onResult(text); };
@@ -535,10 +640,13 @@ async function callClaude(systemPrompt, userText, image){
 }
 
 function tutorSystemPrompt(profile, subject, topic){
+  const langLine = state.ttsLang === 'hi'
+    ? ' Respond entirely in warm, simple Hindi using Devanagari script (not Roman/Hinglish transliteration). Keep proper nouns, numbers, and technical terms without a common Hindi equivalent in English, but write everything else in Hindi.'
+    : '';
   if (isEarlyYears(profile.grade)){
-    return `You are a cheerful, extremely patient preschool teacher talking to a ${profile.grade} child (age 3-5) in India, and to the parent sitting with them, about "${subject}". Use VERY short sentences (5-8 words), simple everyday words, and lots of encouragement ("Well done!", "Great try!"). Include fun sounds, rhymes, or a tiny story where it helps. Suggest one simple hands-on activity the parent can do with the child (e.g. "count 5 spoons together"). Never use paragraphs — use short lines. Keep the whole reply under 80 words. Address the parent briefly if useful, but keep the core message speakable to a small child.`;
+    return `You are a cheerful, extremely patient preschool teacher talking to a ${profile.grade} child (age 3-5) in India, and to the parent sitting with them, about "${subject}". Use VERY short sentences (5-8 words), simple everyday words, and lots of encouragement ("Well done!", "Great try!"). Include fun sounds, rhymes, or a tiny story where it helps. Suggest one simple hands-on activity the parent can do with the child (e.g. "count 5 spoons together"). Never use paragraphs — use short lines. Keep the whole reply under 80 words. Address the parent briefly if useful, but keep the core message speakable to a small child.${langLine}`;
   }
-  return `You are a warm, patient CBSE tutor helping a Class ${profile.grade} student in India understand "${subject}"${topic ? (', specifically the topic "'+topic+'"') : ''}. Match your explanation depth to the NCERT/CBSE syllabus for this grade. Use simple language, short paragraphs, and relatable Indian examples. When the student asks a problem to solve, guide them step by step with questions rather than just giving the final answer immediately, unless they explicitly ask for the answer. Keep replies concise (under 150 words) and encouraging.`;
+  return `You are a warm, patient CBSE tutor helping a Class ${profile.grade} student in India understand "${subject}"${topic ? (', specifically the topic "'+topic+'"') : ''}. Match your explanation depth to the NCERT/CBSE syllabus for this grade. Use simple language, short paragraphs, and relatable Indian examples. When the student asks a problem to solve, guide them step by step with questions rather than just giving the final answer immediately, unless they explicitly ask for the answer. Keep replies concise (under 150 words) and encouraging.${langLine}`;
 }
 
 async function sendChat(text){
@@ -639,7 +747,7 @@ function renderSidebar(){
   state.profiles.forEach(p=>{
     const chip = el('div', {
       class: 'profile-chip' + (p.id===state.activeId ? ' active':''),
-      onclick: async ()=>{ stopSpeaking(); state.activeId = p.id; state.activeSubject=null; state.topic=""; state.chat=[]; state.quiz=null; state.pendingImage=null; await saveActiveId(); await loadProgress(p.id); render(); }
+      onclick: async ()=>{ stopSpeaking(); state.activeId = p.id; state.activeSubject=null; state.topic=""; state.chat=[]; state.quiz=null; state.pendingImage=null; state.sidebarOpen=false; await saveActiveId(); await loadProgress(p.id); render(); }
     }, [
       el('div', {class:'avatar', style:`background:${colorForProfile(p.id)}`}, [initials(p.name)]),
       el('div', {class:'profile-meta'}, [
@@ -702,7 +810,7 @@ function renderSidebar(){
       const chip = el('div', {
         class: 'subject-chip' + (s===state.activeSubject ? ' active':''),
         style:`background:${subjColor(s)}`,
-        onclick: ()=>{ stopSpeaking(); state.activeSubject=s; state.chat=[]; state.quiz=null; state.quizSubmitted=false; state.pendingImage=null; render(); }
+        onclick: ()=>{ stopSpeaking(); state.activeSubject=s; state.chat=[]; state.quiz=null; state.quizSubmitted=false; state.pendingImage=null; state.sidebarOpen=false; render(); }
       }, [s]);
       subjGrid.appendChild(chip);
     });
@@ -735,6 +843,13 @@ function renderChat(){
   ]);
   teacherWrap.appendChild(avatar);
   teacherWrap.appendChild(el('div', {class:'teacher-name'}, ['Your '+state.activeSubject+' Tutor']));
+
+  const langToggle = el('div', {class:'lang-toggle'}, [
+    el('button', {class:'lang-btn'+(state.ttsLang==='en'?' active':''), onclick:()=>{ stopSpeaking(); state.ttsLang='en'; render(); }}, ['English']),
+    el('button', {class:'lang-btn'+(state.ttsLang==='hi'?' active':''), onclick:()=>{ stopSpeaking(); state.ttsLang='hi'; render(); }}, ['हिंदी'])
+  ]);
+  teacherWrap.appendChild(langToggle);
+
   const speakLabel = el('label', {class:'autospeak-toggle'});
   const speakCheckbox = el('input', {type:'checkbox'});
   speakCheckbox.checked = shouldAutoSpeak(profile);
@@ -903,12 +1018,23 @@ function renderProgress(){
 function render(){
   const app = document.getElementById('app');
   app.innerHTML = '';
-  app.appendChild(renderSidebar());
+  const sidebarEl = renderSidebar();
+  if (state.sidebarOpen) sidebarEl.classList.add('open');
+  app.appendChild(sidebarEl);
+
+  const backdrop = el('div', {
+    class: 'sidebar-backdrop' + (state.sidebarOpen ? ' open' : ''),
+    onclick: ()=>{ state.sidebarOpen = false; render(); }
+  });
+  app.appendChild(backdrop);
 
   const main = el('div', {class:'main'});
   const profile = activeProfile();
   const topbar = el('div', {class:'topbar'}, [
-    el('h1', {}, [profile ? profile.name+"'s learning space" : 'Welcome to Apna Tutor']),
+    el('div', {style:'display:flex; align-items:center; gap:10px;'}, [
+      el('button', {class:'menu-btn', onclick: ()=>{ state.sidebarOpen = !state.sidebarOpen; render(); }}, ['☰']),
+      el('h1', {}, [profile ? profile.name+"'s learning space" : 'Welcome to Apna Tutor'])
+    ]),
     el('div', {class:'context'}, [profile && state.activeSubject ? (state.activeSubject + (state.topic? ' · '+state.topic : '')) : ''])
   ]);
   main.appendChild(topbar);
@@ -929,6 +1055,7 @@ function render(){
 }
 
 loadProfiles();
+primeVoices();
 
 // ---- PWA: service worker + install prompt ----
 if ('serviceWorker' in navigator) {
