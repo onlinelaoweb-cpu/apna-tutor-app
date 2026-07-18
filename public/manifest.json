@@ -1,0 +1,17 @@
+{
+  "name": "Apna Tutor — CBSE Home Companion",
+  "short_name": "Apna Tutor",
+  "description": "AI tutor chat, quizzes, and progress tracking for the whole family, tuned to CBSE grades from Nursery to Class 12.",
+  "start_url": "/",
+  "scope": "/",
+  "display": "standalone",
+  "orientation": "portrait-primary",
+  "background_color": "#F5F7FA",
+  "theme_color": "#1B3358",
+  "icons": [
+    { "src": "/icons/icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any" },
+    { "src": "/icons/icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "maskable" },
+    { "src": "/icons/icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any" },
+    { "src": "/icons/icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" }
+  ]
+}

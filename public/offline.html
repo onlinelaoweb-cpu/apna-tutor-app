@@ -1,0 +1,33 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Apna Tutor — Offline</title>
+<style>
+  body {
+    margin: 0; height: 100vh;
+    display: flex; align-items: center; justify-content: center;
+    font-family: 'Inter', sans-serif;
+    background: #F5F7FA; color: #1B2A41; text-align: center;
+    padding: 24px;
+  }
+  .box { max-width: 360px; }
+  .emoji { font-size: 48px; margin-bottom: 12px; }
+  h1 { font-size: 20px; color: #1B3358; margin: 0 0 8px; }
+  p { color: #5B6B85; font-size: 14px; line-height: 1.5; }
+  button {
+    margin-top: 16px; background: #1B3358; color: #fff; border: none;
+    padding: 10px 20px; border-radius: 10px; font-weight: 600; cursor: pointer;
+  }
+</style>
+</head>
+<body>
+  <div class="box">
+    <div class="emoji">📡</div>
+    <h1>No internet connection</h1>
+    <p>Apna Tutor needs an internet connection to talk to the AI tutor and load quizzes. Please check your Wi-Fi or mobile data and try again.</p>
+    <button onclick="location.reload()">Try again</button>
+  </div>
+</body>
+</html>
