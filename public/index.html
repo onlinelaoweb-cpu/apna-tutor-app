@@ -328,6 +328,7 @@
     margin-top: 6px;
   }
   .autospeak-toggle input { cursor: pointer; }
+  .voice-mode-note { font-size: 10.5px; color: var(--ink-soft); margin-top: 4px; }
 
   /* Quiz */
   .quiz-shell { max-width: 620px; margin: 0 auto; }
@@ -506,7 +507,9 @@ let state = {
   autoSpeak: null,     // null = use age-based default; true/false = explicit user choice
   canInstall: false,
   sidebarOpen: false,
-  ttsLang: 'en'         // 'en' or 'hi' - controls both the tutor's reply language and voice
+  ttsLang: 'en',        // 'en' or 'hi' - controls both the tutor's reply language and voice
+  neuralVoiceAvailable: false,
+  currentAudio: null
 };
 
 function shouldAutoSpeak(profile){
@@ -585,6 +588,7 @@ function speak(text, callbacks){
 }
 function stopSpeaking(){
   if ('speechSynthesis' in window) window.speechSynthesis.cancel();
+  if (state.currentAudio){ state.currentAudio.pause(); state.currentAudio = null; }
   state.talking = false; updateAvatarClass();
 }
 function updateAvatarClass(){
@@ -594,6 +598,50 @@ function updateAvatarClass(){
 function scrollChatToBottom(){
   const cw = document.querySelector('.chat-window');
   if (cw) cw.scrollTop = cw.scrollHeight;
+}
+
+async function checkNeuralVoice(){
+  try {
+    const res = await fetch('/api/tts/status');
+    const data = await res.json();
+    state.neuralVoiceAvailable = !!data.available;
+  } catch(e){ state.neuralVoiceAvailable = false; }
+}
+
+// The main entry point for speaking a reply - uses the natural cloud voice when the
+// server has it configured, and quietly falls back to the browser's built-in voice
+// (with word-by-word caption reveal) if it isn't set up or the request fails.
+async function speakReply(text, callbacks){
+  callbacks = callbacks || {};
+  if (!text){ if (callbacks.onDone) callbacks.onDone(); return; }
+
+  if (state.neuralVoiceAvailable){
+    try {
+      const res = await fetch('/api/tts', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ text, lang: state.ttsLang })
+      });
+      if (!res.ok) throw new Error('tts request failed');
+      const data = await res.json();
+      window.speechSynthesis && window.speechSynthesis.cancel();
+      const audio = new Audio('data:audio/mp3;base64,' + data.audio);
+      state.currentAudio = audio;
+      audio.onplay = ()=>{
+        state.talking = true; updateAvatarClass();
+        // No per-word timing from the cloud voice, so reveal the caption as soon as
+        // the natural audio starts (the voice itself is what carries the "human" feel now).
+        if (callbacks.onWord) callbacks.onWord(text.length);
+      };
+      audio.onended = ()=>{ state.talking = false; updateAvatarClass(); state.currentAudio = null; if (callbacks.onDone) callbacks.onDone(); };
+      audio.onerror = ()=>{ state.talking = false; updateAvatarClass(); state.currentAudio = null; if (callbacks.onDone) callbacks.onDone(); };
+      await audio.play();
+      return;
+    } catch(e){
+      // fall through to the browser voice below
+    }
+  }
+  speak(text, callbacks);
 }
 
 function startListening(onResult){
@@ -737,7 +785,7 @@ async function sendChat(text){
       state.chat.push(msg);
       state.chatLoading = false;
       render();
-      speak(cleaned, {
+      speakReply(cleaned, {
         onWord: (charIndex) => {
           msg.text = cleaned.slice(0, charIndex);
           scrollChatToBottom();
@@ -951,6 +999,9 @@ function renderChat(){
   speakLabel.appendChild(speakCheckbox);
   speakLabel.appendChild(document.createTextNode('🔊 Read answers aloud'));
   teacherWrap.appendChild(speakLabel);
+  teacherWrap.appendChild(el('div', {class:'voice-mode-note'}, [
+    state.neuralVoiceAvailable ? '✨ Natural voice enabled' : 'Using your device\'s built-in voice'
+  ]));
   wrap.appendChild(teacherWrap);
 
   const chatWindow = el('div', {class:'chat-window'});
@@ -972,7 +1023,7 @@ function renderChat(){
     const col = el('div', {});
     col.appendChild(bubble);
     if (m.role==='assistant'){
-      col.appendChild(el('button', {class:'speak-btn', onclick:()=>speak(m.text)}, ['🔊 Play']));
+      col.appendChild(el('button', {class:'speak-btn', onclick:()=>speakReply(m.text)}, ['🔊 Play']));
     }
     row.appendChild(col);
     chatWindow.appendChild(row);
@@ -1150,6 +1201,7 @@ function render(){
 
 loadProfiles();
 primeVoices();
+checkNeuralVoice();
 
 // ---- PWA: service worker + install prompt ----
 if ('serviceWorker' in navigator) {

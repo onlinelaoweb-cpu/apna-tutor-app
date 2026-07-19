@@ -98,6 +98,49 @@ app.post('/api/messages', async (req, res) => {
   }
 });
 
+// ---- Neural text-to-speech (Google Cloud TTS) - optional. If not configured, the
+// frontend automatically falls back to the browser's built-in voice, so the app keeps
+// working either way. Voice names use Wavenet for broad, reliable language support.
+const TTS_VOICES = {
+  en: { languageCode: 'en-IN', name: 'en-IN-Wavenet-D' },
+  hi: { languageCode: 'hi-IN', name: 'hi-IN-Wavenet-A' },
+};
+
+app.get('/api/tts/status', (req, res) => {
+  res.json({ available: !!process.env.GOOGLE_TTS_API_KEY });
+});
+
+app.post('/api/tts', async (req, res) => {
+  if (!process.env.GOOGLE_TTS_API_KEY) {
+    return res.status(404).json({ error: 'Neural voice is not configured on this server.' });
+  }
+  const { text, lang } = req.body || {};
+  if (!text) return res.status(400).json({ error: 'text is required' });
+  const voice = TTS_VOICES[lang] || TTS_VOICES.en;
+
+  try {
+    const upstream = await fetch(
+      `https://texttospeech.googleapis.com/v1/text:synthesize?key=${process.env.GOOGLE_TTS_API_KEY}`,
+      {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          input: { text },
+          voice: { languageCode: voice.languageCode, name: voice.name },
+          audioConfig: { audioEncoding: 'MP3', speakingRate: 0.95, pitch: 0 },
+        }),
+      }
+    );
+    const data = await upstream.json();
+    if (!upstream.ok) {
+      return res.status(upstream.status).json({ error: data.error?.message || 'Google TTS error' });
+    }
+    res.json({ audio: data.audioContent }); // base64 MP3
+  } catch (e) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
 // ---- Static frontend ----
 app.use(express.static(path.join(__dirname, 'public')));
 
