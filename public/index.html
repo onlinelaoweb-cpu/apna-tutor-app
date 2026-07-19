@@ -533,11 +533,16 @@ let state = {
   sidebarOpen: false,
   ttsLang: 'en',        // 'en' or 'hi' - controls both the tutor's reply language and voice
   neuralVoiceAvailable: false,
-  currentAudio: null
+  currentAudio: null,
+  conversationMode: null // null = default (on for language subjects); true/false = explicit user choice
 };
 
 function shouldAutoSpeak(profile){
   return state.autoSpeak !== null ? state.autoSpeak : isEarlyYears(profile.grade);
+}
+function shouldConversationMode(){
+  if (state.conversationMode !== null) return state.conversationMode;
+  return FOREIGN_LANGUAGES.includes(state.activeSubject);
 }
 
 // Voices load asynchronously in most browsers - cache them once available.
@@ -668,6 +673,7 @@ async function speakReply(text, callbacks){
   speak(text, callbacks);
 }
 
+let activeRecognition = null;
 function startListening(onResult){
   const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
   if (!SR){ alert('Voice input is not supported in this browser. Try Chrome or Edge.'); return; }
@@ -676,10 +682,15 @@ function startListening(onResult){
   recog.interimResults = false;
   recog.maxAlternatives = 1;
   recog.onresult = (e)=>{ const text = e.results[0][0].transcript; onResult(text); };
-  recog.onerror = ()=>{ state.listening = false; render(); };
-  recog.onend = ()=>{ state.listening = false; render(); };
+  recog.onerror = ()=>{ state.listening = false; activeRecognition = null; render(); };
+  recog.onend = ()=>{ state.listening = false; activeRecognition = null; render(); };
+  activeRecognition = recog;
   state.listening = true; render();
   recog.start();
+}
+function stopListening(){
+  if (activeRecognition){ activeRecognition.onend = null; activeRecognition.onerror = null; try{ activeRecognition.abort(); }catch(e){} activeRecognition = null; }
+  state.listening = false;
 }
 
 function handleImageFile(file){
@@ -736,11 +747,11 @@ function colorForProfile(id){
   return colors[h];
 }
 
-async function callClaude(systemPrompt, userText, image){
+async function callClaude(systemPrompt, userText, image, history){
   const res = await fetch("/api/messages", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ system: systemPrompt, message: userText, image: image || undefined })
+    body: JSON.stringify({ system: systemPrompt, message: userText, image: image || undefined, history: history || [] })
   });
   if (!res.ok){
     const err = await res.json().catch(()=>({}));
@@ -776,20 +787,105 @@ function tutorSystemPrompt(profile, subject, topic){
     ? ' Respond entirely in warm, simple Hindi using Devanagari script (not Roman/Hinglish transliteration). Keep proper nouns, numbers, and technical terms without a common Hindi equivalent in English, but write everything else in Hindi.'
     : '';
   const styleLine = ' Write the way a real teacher would speak out loud in the room, in natural flowing sentences. Do not use any markdown formatting: no asterisks, no hash symbols, no bullet points or numbered lists, no dashes as list markers, no emojis, no backticks. If you want to list a few things, weave them into a sentence with words like "first," "next," and "also" instead of a list. Every word you write may be read aloud by text-to-speech, so it must sound natural when spoken, not like a written document.';
+  const turnTakingLine = ' This is a live, real-time one-on-one lesson, not a lecture - behave exactly like a tuition teacher sitting across from the child. In every single reply, say or teach only ONE small thing: one fact, one short explanation, one question, or one word or phrase to repeat back. Then stop completely and wait - do not ask a second question or introduce a second idea in the same reply. Look at the conversation history before you respond: if your last turn asked the child to answer a question or repeat a word, your very next reply must first react to what they actually said (praise them warmly if correct, or gently correct them and repeat the right version once if not) before you move on to anything new. Never bundle "here is the explanation, now here are three questions" into one reply - one step per turn, always.';
   const isForeignLanguage = FOREIGN_LANGUAGES.includes(subject);
   const languageLine = isForeignLanguage
-    ? ` You are teaching the child beginner-level ${subject} as a foreign language, appropriate for their age and grade - simple everyday words, greetings, numbers, colors, animals, and short phrases, building up gradually over time. Every time you introduce a new ${subject} word or phrase, immediately follow it with a simple English-style phonetic pronunciation in parentheses right after it, for example bonjour said bon-zhoor, so the child can say it out loud correctly even without hearing a native speaker. Keep new vocabulary to two or three words or phrases per answer so it is not overwhelming, and encourage the child to repeat each word out loud.`
+    ? ` You are teaching the child beginner-level ${subject} as a foreign language, appropriate for their age and grade - simple everyday words, greetings, numbers, colors, animals, and short phrases, building up gradually over time. Teach exactly ONE new word or phrase per reply. Immediately follow it with a simple English-style phonetic pronunciation in parentheses, for example bonjour said bon-zhoor, then explicitly ask the child to say it back to you, for example "Now you try saying bonjour" - and then stop and wait. Do not introduce a second word until they have responded to the first one.`
     : '';
   if (isEarlyYears(profile.grade)){
-    return `You are a cheerful, extremely patient preschool teacher talking to a ${profile.grade} child (age 3-5) in India, and to the parent sitting with them, about "${subject}". Use VERY short sentences (5-8 words), simple everyday words, and lots of encouragement ("Well done!", "Great try!"). Include fun sounds, rhymes, or a tiny story where it helps. Suggest one simple hands-on activity the parent can do with the child (e.g. "count 5 spoons together"). Never use paragraphs — use short lines. Keep the whole reply under 80 words. Address the parent briefly if useful, but keep the core message speakable to a small child.${styleLine}${languageLine}${langLine}`;
+    return `You are a cheerful, extremely patient preschool teacher talking to a ${profile.grade} child (age 3-5) in India, and to the parent sitting with them, about "${subject}". Use VERY short sentences (5-8 words), simple everyday words, and lots of encouragement ("Well done!", "Great try!"). Include fun sounds, rhymes, or a tiny story where it helps. Suggest one simple hands-on activity the parent can do with the child (e.g. "count 5 spoons together"). Never use paragraphs — use short lines. Keep the whole reply under 60 words, since only one small thing should happen per turn. Address the parent briefly if useful, but keep the core message speakable to a small child.${styleLine}${turnTakingLine}${languageLine}${langLine}`;
   }
-  return `You are a warm, patient CBSE tutor helping a Class ${profile.grade} student in India understand "${subject}"${topic ? (', specifically the topic "'+topic+'"') : ''}. Match your explanation depth to the NCERT/CBSE syllabus for this grade. Use simple language, short paragraphs, and relatable Indian examples. When the student asks a problem to solve, guide them step by step with questions rather than just giving the final answer immediately, unless they explicitly ask for the answer. Keep replies concise (under 150 words) and encouraging.${styleLine}${languageLine}${langLine}`;
+  return `You are a warm, patient CBSE tutor helping a Class ${profile.grade} student in India understand "${subject}"${topic ? (', specifically the topic "'+topic+'"') : ''}. Match your explanation depth to the NCERT/CBSE syllabus for this grade. Use simple language and relatable Indian examples. When the student asks a problem to solve, guide them step by step with questions rather than just giving the final answer immediately, unless they explicitly ask for the answer. Keep each reply short (under 80 words), since only one step happens per turn.${styleLine}${turnTakingLine}${languageLine}${langLine}`;
+}
+
+// ---- Recap / spaced-review: remembers what was covered so returning to a subject
+// on a later day opens with a quick recall question instead of jumping into new material.
+const topicsLoggedThisSession = new Set();
+const recapShownThisSession = new Set();
+
+async function logTopicEngagement(profile, subject, topic){
+  const key = profile.id + ':' + subject;
+  if (topicsLoggedThisSession.has(key)) return;
+  topicsLoggedThisSession.add(key);
+  try {
+    await fetch('/api/topics/' + encodeURIComponent(profile.id), {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ subject, topic: topic || '' })
+    });
+  } catch(e){}
+}
+
+async function maybeStartWithRecap(profile, subject){
+  const key = profile.id + ':' + subject;
+  if (recapShownThisSession.has(key)) return;
+  recapShownThisSession.add(key);
+  let priorTopics = [];
+  try {
+    const res = await fetch('/api/topics/' + encodeURIComponent(profile.id) + '?subject=' + encodeURIComponent(subject));
+    const data = await res.json();
+    priorTopics = data.topics || [];
+  } catch(e){ return; }
+  if (!priorTopics.length) return;
+  // Only start the recap if the child hasn't already begun typing/talking in the meantime.
+  if (state.activeSubject !== subject || state.chat.length > 0) return;
+
+  const topicList = priorTopics.map(t => (t.topic && t.topic.trim()) ? t.topic : subject).join(', ');
+  const recapSystemPrompt = tutorSystemPrompt(profile, subject, state.topic) +
+    ` This is the start of a brand new session, and the child has come back after some time away. Before teaching anything new, warmly welcome them back in one short line, then ask exactly ONE simple recall question about something covered in a previous session, to help them remember it. Topics covered before: ${topicList}. Keep the whole thing to one or two short sentences total, then stop and wait for their answer - do not teach anything new yet.`;
+
+  state.chatLoading = true;
+  render();
+  try {
+    const reply = await callClaude(recapSystemPrompt, "Start today's session with a quick welcome-back and one recap question.", null, []);
+    const cleaned = cleanReply(reply) || "Welcome back! Ready to pick up where we left off?";
+    if (shouldAutoSpeak(profile)){
+      const msg = { role: "assistant", text: "" };
+      state.chat.push(msg);
+      state.chatLoading = false;
+      render();
+      speakReply(cleaned, {
+        onWord: (charIndex) => {
+          msg.text = cleaned.slice(0, charIndex);
+          scrollChatToBottom();
+          const bubbleEl = document.querySelector('.msg.assistant:last-child .bubble');
+          if (bubbleEl) bubbleEl.textContent = msg.text;
+        },
+        onDone: () => {
+          msg.text = cleaned;
+          render();
+          if (shouldConversationMode() && (window.SpeechRecognition || window.webkitSpeechRecognition)){
+            setTimeout(()=>{
+              if (state.activeTab === 'tutor' && !state.listening && !state.chatLoading){
+                startListening((spoken)=>{ if (spoken && spoken.trim()) sendChat(spoken); });
+              }
+            }, 600);
+          }
+        }
+      });
+    } else {
+      state.chat.push({role:"assistant", text: cleaned});
+      state.chatLoading = false;
+      render();
+    }
+  } catch(e){
+    state.chatLoading = false;
+    render();
+  }
 }
 
 async function sendChat(text){
   const profile = activeProfile();
   const img = state.pendingImage;
   if (!profile || !state.activeSubject || (!text.trim() && !img)) return;
+
+  logTopicEngagement(profile, state.activeSubject, state.topic);
+
+  // Everything already in the chat becomes context for this turn, so the tutor
+  // remembers what it just asked and can react to what the child says next.
+  const historyForApi = state.chat
+    .filter(m => m.text && m.text.trim())
+    .map(m => ({ role: m.role, content: m.text }));
+
   state.chat.push({role:"user", text, image: img ? img.previewUrl : null});
   state.pendingImage = null;
   state.chatLoading = true;
@@ -798,7 +894,8 @@ async function sendChat(text){
     const reply = await callClaude(
       tutorSystemPrompt(profile, state.activeSubject, state.topic),
       text || "Please look at this photo and help me understand it.",
-      img ? { mediaType: img.mediaType, data: img.data } : null
+      img ? { mediaType: img.mediaType, data: img.data } : null,
+      historyForApi
     );
     const cleaned = cleanReply(reply) || "Sorry, I couldn't think of a reply. Try asking again!";
 
@@ -819,6 +916,16 @@ async function sendChat(text){
         onDone: () => {
           msg.text = cleaned;
           render();
+          // Live conversation mode: once the tutor finishes speaking, automatically
+          // start listening again so the child can just answer out loud, like a
+          // real back-and-forth lesson instead of having to tap the mic every time.
+          if (shouldConversationMode() && (window.SpeechRecognition || window.webkitSpeechRecognition)){
+            setTimeout(()=>{
+              if (state.activeTab === 'tutor' && !state.listening && !state.chatLoading){
+                startListening((spoken)=>{ if (spoken && spoken.trim()) sendChat(spoken); });
+              }
+            }, 600);
+          }
         }
       });
       return;
@@ -913,7 +1020,7 @@ function renderSidebar(){
   state.profiles.forEach(p=>{
     const chip = el('div', {
       class: 'profile-chip' + (p.id===state.activeId ? ' active':''),
-      onclick: async ()=>{ stopSpeaking(); state.activeId = p.id; state.activeSubject=null; state.topic=""; state.chat=[]; state.quiz=null; state.pendingImage=null; state.sidebarOpen=false; await saveActiveId(); await loadProgress(p.id); render(); }
+      onclick: async ()=>{ stopSpeaking(); stopListening(); state.activeId = p.id; state.activeSubject=null; state.topic=""; state.chat=[]; state.quiz=null; state.pendingImage=null; state.sidebarOpen=false; await saveActiveId(); await loadProgress(p.id); render(); }
     }, [
       el('div', {class:'avatar', style:`background:${colorForProfile(p.id)}`}, [initials(p.name)]),
       el('div', {class:'profile-meta'}, [
@@ -928,7 +1035,7 @@ function renderSidebar(){
           await fetch('/api/profiles/'+encodeURIComponent(p.id), { method:'DELETE' });
           state.profiles = state.profiles.filter(x=>x.id!==p.id);
           delete state.progress[p.id];
-          if (state.activeId===p.id){ stopSpeaking(); state.activeId = state.profiles[0]?.id || null; state.activeSubject=null; state.chat=[]; state.quiz=null; state.pendingImage=null; saveActiveId(); if(state.activeId) await loadProgress(state.activeId); }
+          if (state.activeId===p.id){ stopSpeaking(); stopListening(); state.activeId = state.profiles[0]?.id || null; state.activeSubject=null; state.chat=[]; state.quiz=null; state.pendingImage=null; saveActiveId(); if(state.activeId) await loadProgress(state.activeId); }
           render();
         }
       }, ['×'])
@@ -976,7 +1083,7 @@ function renderSidebar(){
       const chip = el('div', {
         class: 'subject-chip' + (s===state.activeSubject ? ' active':''),
         style:`background:${subjColor(s)}`,
-        onclick: ()=>{ stopSpeaking(); state.activeSubject=s; state.chat=[]; state.quiz=null; state.quizSubmitted=false; state.pendingImage=null; state.sidebarOpen=false; render(); }
+        onclick: ()=>{ stopSpeaking(); stopListening(); state.activeSubject=s; state.chat=[]; state.quiz=null; state.quizSubmitted=false; state.pendingImage=null; state.sidebarOpen=false; render(); maybeStartWithRecap(profile, s); }
       }, [s]);
       subjGrid.appendChild(chip);
     });
@@ -1017,10 +1124,19 @@ function renderChat(){
   const speakLabel = el('label', {class:'autospeak-toggle'});
   const speakCheckbox = el('input', {type:'checkbox'});
   speakCheckbox.checked = shouldAutoSpeak(profile);
-  speakCheckbox.addEventListener('change', (e)=>{ state.autoSpeak = e.target.checked; if(!e.target.checked) stopSpeaking(); });
+  speakCheckbox.addEventListener('change', (e)=>{ state.autoSpeak = e.target.checked; if(!e.target.checked){ stopSpeaking(); stopListening(); } });
   speakLabel.appendChild(speakCheckbox);
   speakLabel.appendChild(document.createTextNode('🔊 Read answers aloud'));
   teacherWrap.appendChild(speakLabel);
+
+  const convoLabel = el('label', {class:'autospeak-toggle'});
+  const convoCheckbox = el('input', {type:'checkbox'});
+  convoCheckbox.checked = shouldConversationMode();
+  convoCheckbox.addEventListener('change', (e)=>{ state.conversationMode = e.target.checked; if(!e.target.checked) stopListening(); });
+  convoLabel.appendChild(convoCheckbox);
+  convoLabel.appendChild(document.createTextNode('🎙️ Live conversation (auto-listen after I speak)'));
+  teacherWrap.appendChild(convoLabel);
+
   teacherWrap.appendChild(el('div', {class:'voice-mode-note'}, [
     state.neuralVoiceAvailable ? '✨ Natural voice enabled' : 'Using your device\'s built-in voice'
   ]));
@@ -1073,8 +1189,8 @@ function renderChat(){
   fileInput.addEventListener('change', (e)=>{ if(e.target.files[0]) handleImageFile(e.target.files[0]); e.target.value=''; });
   const attachBtn = el('button', {class:'icon-btn', title:'Attach a photo', onclick:()=>fileInput.click()}, ['📎']);
 
-  const micBtn = el('button', {class:'icon-btn'+(state.listening?' listening':''), title:'Speak your question', onclick:()=>{
-    if (state.listening) return;
+  const micBtn = el('button', {class:'icon-btn'+(state.listening?' listening':''), title: state.listening ? 'Stop listening' : 'Speak your question', onclick:()=>{
+    if (state.listening){ stopListening(); render(); return; }
     startListening((text)=>{ if(text && text.trim() && !state.chatLoading) sendChat(text); });
   }}, [state.listening ? '●' : '🎤']);
 

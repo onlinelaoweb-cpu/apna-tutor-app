@@ -8,9 +8,11 @@ const DB_PATH = path.join(__dirname, 'data.json');
 function readDB() {
   try {
     const raw = fs.readFileSync(DB_PATH, 'utf8');
-    return JSON.parse(raw);
+    const data = JSON.parse(raw);
+    if (!Array.isArray(data.topicLog)) data.topicLog = []; // backward-compatible with older data.json files
+    return data;
   } catch (e) {
-    return { profiles: [], progress: [] };
+    return { profiles: [], progress: [], topicLog: [] };
   }
 }
 
@@ -31,6 +33,7 @@ module.exports = {
     const data = readDB();
     data.profiles = data.profiles.filter((p) => p.id !== id);
     data.progress = data.progress.filter((entry) => entry.profileId !== id);
+    data.topicLog = data.topicLog.filter((entry) => entry.profileId !== id);
     writeDB(data);
   },
   getProgress(profileId) {
@@ -43,6 +46,17 @@ module.exports = {
     const data = readDB();
     const id = data.progress.length ? Math.max(...data.progress.map((e) => e.id)) + 1 : 1;
     data.progress.push({ id, profileId, ...entry });
+    writeDB(data);
+  },
+  // Topic log powers the "welcome back, let's recap" feature - a lightweight record
+  // of what subject/topic a child engaged with on which day.
+  getTopicLog(profileId, subject) {
+    const data = readDB();
+    return data.topicLog.filter((e) => e.profileId === profileId && e.subject === subject);
+  },
+  addTopicLog(profileId, entry) {
+    const data = readDB();
+    data.topicLog.push({ profileId, ...entry });
     writeDB(data);
   },
 };

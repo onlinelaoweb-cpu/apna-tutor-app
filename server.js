@@ -54,12 +54,39 @@ app.post('/api/progress/:profileId', (req, res) => {
   res.json({ ok: true });
 });
 
+// ---- Topic log (powers "welcome back, let's recap what we covered before") ----
+app.get('/api/topics/:profileId', (req, res) => {
+  const subject = req.query.subject;
+  if (!subject) return res.status(400).json({ error: 'subject query param is required' });
+  const today = new Date().toISOString().slice(0, 10);
+  const entries = db.getTopicLog(req.params.profileId, subject).filter((e) => e.date !== today);
+  entries.sort((a, b) => (a.date < b.date ? 1 : -1)); // most recent day first
+  const seen = new Set();
+  const distinct = [];
+  for (const e of entries) {
+    const key = e.topic || '(general)';
+    if (seen.has(key)) continue;
+    seen.add(key);
+    distinct.push({ topic: e.topic, date: e.date });
+    if (distinct.length >= 5) break;
+  }
+  res.json({ topics: distinct });
+});
+
+app.post('/api/topics/:profileId', (req, res) => {
+  const { subject, topic } = req.body || {};
+  if (!subject) return res.status(400).json({ error: 'subject is required' });
+  const date = new Date().toISOString().slice(0, 10);
+  db.addTopicLog(req.params.profileId, { subject, topic: topic || '', date });
+  res.json({ ok: true });
+});
+
 // ---- Anthropic proxy (keeps the API key server-side only) ----
 app.post('/api/messages', async (req, res) => {
   if (!process.env.ANTHROPIC_API_KEY) {
     return res.status(500).json({ error: 'Server is missing ANTHROPIC_API_KEY. Set it in your environment variables.' });
   }
-  const { system, message, image } = req.body || {};
+  const { system, message, image, history } = req.body || {};
   if (!message && !image) return res.status(400).json({ error: 'message or image is required' });
 
   let content;
@@ -71,6 +98,14 @@ app.post('/api/messages', async (req, res) => {
   } else {
     content = message;
   }
+
+  // Keep prior turns so the tutor remembers what it just asked and can react to the
+  // child's reply - capped to the last 12 turns to bound cost and latency.
+  const priorTurns = Array.isArray(history)
+    ? history.slice(-12).filter((h) => h && (h.role === 'user' || h.role === 'assistant') && typeof h.content === 'string' && h.content.trim())
+        .map((h) => ({ role: h.role, content: h.content }))
+    : [];
+  const messages = [...priorTurns, { role: 'user', content }];
 
   try {
     const upstream = await fetch('https://api.anthropic.com/v1/messages', {
@@ -84,7 +119,7 @@ app.post('/api/messages', async (req, res) => {
         model: 'claude-sonnet-4-6',
         max_tokens: 1000,
         system: system || undefined,
-        messages: [{ role: 'user', content }],
+        messages,
       }),
     });
     const data = await upstream.json();
