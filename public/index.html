@@ -297,6 +297,21 @@
   }
   .image-preview-chip img { width: 34px; height: 34px; object-fit: cover; border-radius: 6px; }
   .image-preview-chip .remove-chip { margin-left: auto; cursor: pointer; color: var(--maroon); font-weight: 700; }
+  .mic-preview-chip {
+    max-width: 720px; margin: 0 auto 6px;
+    background: #FFF8EC; border: 1.5px solid var(--gold);
+    border-radius: 10px; padding: 10px 12px;
+  }
+  .mic-preview-text { font-size: 13.5px; margin-bottom: 8px; }
+  .mic-preview-label { color: var(--ink-soft); }
+  .mic-preview-heard { color: var(--ink); font-weight: 600; }
+  .mic-preview-actions { display: flex; gap: 8px; }
+  .mic-preview-btn {
+    border: none; border-radius: 8px; padding: 7px 12px; font-size: 12.5px; font-weight: 600; cursor: pointer;
+  }
+  .mic-preview-btn.send { background: var(--green-ok); color: #fff; }
+  .mic-preview-btn.retry { background: var(--bg-alt); border: 1px solid var(--line); color: var(--ink); }
+  .mic-preview-btn.cancel { background: transparent; color: var(--ink-soft); padding: 7px 10px; }
   .msg-image { max-width: 220px; border-radius: 10px; margin-top: 6px; display: block; }
 
   /* Talking teacher avatar */
@@ -534,7 +549,8 @@ let state = {
   ttsLang: 'en',        // 'en' or 'hi' - controls both the tutor's reply language and voice
   neuralVoiceAvailable: false,
   currentAudio: null,
-  conversationMode: null // null = default (on for language subjects); true/false = explicit user choice
+  conversationMode: null, // null = default (on for language subjects); true/false = explicit user choice
+  micPreview: null // {text, onConfirm} - shown before a mic recognition result is actually sent
 };
 
 function shouldAutoSpeak(profile){
@@ -674,6 +690,8 @@ async function speakReply(text, callbacks){
 }
 
 let activeRecognition = null;
+let micPreviewTimer = null;
+
 function startListening(onResult){
   const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
   if (!SR){ alert('Voice input is not supported in this browser. Try Chrome or Edge.'); return; }
@@ -681,7 +699,10 @@ function startListening(onResult){
   recog.lang = state.ttsLang === 'hi' ? 'hi-IN' : 'en-IN';
   recog.interimResults = false;
   recog.maxAlternatives = 1;
-  recog.onresult = (e)=>{ const text = e.results[0][0].transcript; onResult(text); };
+  recog.onresult = (e)=>{
+    const text = e.results[0][0].transcript;
+    showMicPreview(text, onResult);
+  };
   recog.onerror = ()=>{ state.listening = false; activeRecognition = null; render(); };
   recog.onend = ()=>{ state.listening = false; activeRecognition = null; render(); };
   activeRecognition = recog;
@@ -691,6 +712,40 @@ function startListening(onResult){
 function stopListening(){
   if (activeRecognition){ activeRecognition.onend = null; activeRecognition.onerror = null; try{ activeRecognition.abort(); }catch(e){} activeRecognition = null; }
   state.listening = false;
+}
+
+// Shows what the mic actually heard before sending it, since short sounds/single words
+// are frequently misheard - this gives a beat to catch a bad guess instead of it being
+// sent to the tutor as if the child really said it. Auto-confirms after a short pause
+// so a correct recognition still feels like a live, flowing conversation.
+function showMicPreview(text, onConfirm){
+  clearTimeout(micPreviewTimer);
+  state.micPreview = { text, onConfirm };
+  render();
+  micPreviewTimer = setTimeout(()=>{
+    if (state.micPreview && state.micPreview.text === text){
+      confirmMicPreview();
+    }
+  }, 2500);
+}
+function confirmMicPreview(){
+  clearTimeout(micPreviewTimer);
+  const preview = state.micPreview;
+  state.micPreview = null;
+  if (preview && preview.text && preview.text.trim()) preview.onConfirm(preview.text);
+  else render();
+}
+function retryMicPreview(){
+  clearTimeout(micPreviewTimer);
+  const onConfirm = state.micPreview ? state.micPreview.onConfirm : null;
+  state.micPreview = null;
+  render();
+  if (onConfirm) startListening(onConfirm);
+}
+function cancelMicPreview(){
+  clearTimeout(micPreviewTimer);
+  state.micPreview = null;
+  render();
 }
 
 function handleImageFile(file){
@@ -787,7 +842,7 @@ function tutorSystemPrompt(profile, subject, topic){
     ? ' Respond entirely in warm, simple Hindi using Devanagari script (not Roman/Hinglish transliteration). Keep proper nouns, numbers, and technical terms without a common Hindi equivalent in English, but write everything else in Hindi.'
     : '';
   const styleLine = ' Write the way a real teacher would speak out loud in the room, in natural flowing sentences. Do not use any markdown formatting: no asterisks, no hash symbols, no bullet points or numbered lists, no dashes as list markers, no emojis, no backticks. If you want to list a few things, weave them into a sentence with words like "first," "next," and "also" instead of a list. Every word you write may be read aloud by text-to-speech, so it must sound natural when spoken, not like a written document.';
-  const turnTakingLine = ' This is a live, real-time one-on-one lesson, not a lecture - behave exactly like a tuition teacher sitting across from the child. In every single reply, say or teach only ONE small thing: one fact, one short explanation, one question, or one word or phrase to repeat back. Then stop completely and wait - do not ask a second question or introduce a second idea in the same reply. Look at the conversation history before you respond: if your last turn asked the child to answer a question or repeat a word, your very next reply must first react to what they actually said (praise them warmly if correct, or gently correct them and repeat the right version once if not) before you move on to anything new. Never bundle "here is the explanation, now here are three questions" into one reply - one step per turn, always.';
+  const turnTakingLine = ' This is a live, real-time one-on-one lesson, not a lecture - behave exactly like a tuition teacher sitting across from the child. In every single reply, say or teach only ONE small thing: one fact, one short explanation, one question, or one word or phrase to repeat back. Then stop completely and wait - do not ask a second question or introduce a second idea in the same reply. Look at the conversation history before you respond: if your last turn asked the child to answer a question or repeat a word, your very next reply must first react to what they actually said (praise them warmly if correct, or gently correct them and repeat the right version once if not) before you move on to anything new. Never bundle "here is the explanation, now here are three questions" into one reply - one step per turn, always. The child\'s messages may come from imperfect voice recognition, especially for very short sounds or single letters, so if their message seems completely unrelated to what you just asked or does not make sense in context, do not treat it as a real answer or change topic - instead, warmly say you did not quite catch that and ask them to try saying or typing it again.';
   const isForeignLanguage = FOREIGN_LANGUAGES.includes(subject);
   const languageLine = isForeignLanguage
     ? ` You are teaching the child beginner-level ${subject} as a foreign language, appropriate for their age and grade - simple everyday words, greetings, numbers, colors, animals, and short phrases, building up gradually over time. Teach exactly ONE new word or phrase per reply. Immediately follow it with a simple English-style phonetic pronunciation in parentheses, for example bonjour said bon-zhoor, then explicitly ask the child to say it back to you, for example "Now you try saying bonjour" - and then stop and wait. Do not introduce a second word until they have responded to the first one.`
@@ -1179,6 +1234,21 @@ function renderChat(){
       el('img', {src: state.pendingImage.previewUrl}),
       el('span', {}, ['Photo attached']),
       el('span', {class:'remove-chip', onclick:()=>{ state.pendingImage=null; render(); }}, ['Remove'])
+    ]);
+    wrap.appendChild(chip);
+  }
+
+  if (state.micPreview){
+    const chip = el('div', {class:'mic-preview-chip'}, [
+      el('div', {class:'mic-preview-text'}, [
+        el('span', {class:'mic-preview-label'}, ['🎤 Heard: ']),
+        el('span', {class:'mic-preview-heard'}, ['"'+state.micPreview.text+'"'])
+      ]),
+      el('div', {class:'mic-preview-actions'}, [
+        el('button', {class:'mic-preview-btn send', onclick: confirmMicPreview}, ['Send ✓']),
+        el('button', {class:'mic-preview-btn retry', onclick: retryMicPreview}, ['Try again']),
+        el('button', {class:'mic-preview-btn cancel', onclick: cancelMicPreview}, ['✕'])
+      ])
     ]);
     wrap.appendChild(chip);
   }
