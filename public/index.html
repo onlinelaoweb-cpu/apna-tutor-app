@@ -462,23 +462,29 @@ const SUBJECT_COLORS = {
   "History": "#8A6D3B", "Political Science": "#7C5CBF", "Geography": "#4C9F70",
   "Sanskrit": "#B23A48", "ICT": "#2E9C9C",
   "Alphabets": "#C2536B", "Numbers": "#E0793C", "Rhymes & Stories": "#7C5CBF",
-  "Colors & Shapes": "#4C9F70", "My World": "#3B6EA5"
+  "Colors & Shapes": "#4C9F70", "My World": "#3B6EA5",
+  "Spanish": "#E4572E", "French": "#3E5C9A", "Chinese": "#C1272D", "German": "#8C6A3F"
 };
 function subjColor(s){ return SUBJECT_COLORS[s] || "#5B6B85"; }
 
 const EARLY_YEARS = ["Nursery","LKG","UKG"];
 function isEarlyYears(grade){ return EARLY_YEARS.includes(grade); }
+const FOREIGN_LANGUAGES = ["Spanish","French","Chinese","German"];
 
 function subjectsForGrade(grade, stream){
-  if (isEarlyYears(grade)) return ["Alphabets","Numbers","Rhymes & Stories","Colors & Shapes","My World"];
-  const g = parseInt(grade,10);
-  if (g <= 5) return ["Mathematics","English","Hindi","EVS","ICT"];
-  if (g <= 8) return ["Mathematics","Science","English","Hindi","Social Science","ICT"];
-  if (g <= 10) return ["Mathematics","Science","English","Social Science","Hindi","ICT"];
-  // 11-12, stream based
-  if (stream === "Commerce") return ["Accountancy","Business Studies","Economics","English","Mathematics"];
-  if (stream === "Humanities") return ["History","Political Science","Geography","Economics","English"];
-  return ["Physics","Chemistry","Mathematics","Biology","English"]; // Science default
+  let base;
+  if (isEarlyYears(grade)) {
+    base = ["Alphabets","Numbers","Rhymes & Stories","Colors & Shapes","My World"];
+  } else {
+    const g = parseInt(grade,10);
+    if (g <= 5) base = ["Mathematics","English","Hindi","EVS","ICT"];
+    else if (g <= 8) base = ["Mathematics","Science","English","Hindi","Social Science","ICT"];
+    else if (g <= 10) base = ["Mathematics","Science","English","Social Science","Hindi","ICT"];
+    else if (stream === "Commerce") base = ["Accountancy","Business Studies","Economics","English","Mathematics"];
+    else if (stream === "Humanities") base = ["History","Political Science","Geography","Economics","English"];
+    else base = ["Physics","Chemistry","Mathematics","Biology","English"]; // Science default
+  }
+  return base.concat(FOREIGN_LANGUAGES);
 }
 
 let state = {
@@ -698,10 +704,14 @@ function tutorSystemPrompt(profile, subject, topic){
     ? ' Respond entirely in warm, simple Hindi using Devanagari script (not Roman/Hinglish transliteration). Keep proper nouns, numbers, and technical terms without a common Hindi equivalent in English, but write everything else in Hindi.'
     : '';
   const styleLine = ' Write the way a real teacher would speak out loud in the room, in natural flowing sentences. Do not use any markdown formatting: no asterisks, no hash symbols, no bullet points or numbered lists, no dashes as list markers, no emojis, no backticks. If you want to list a few things, weave them into a sentence with words like "first," "next," and "also" instead of a list. Every word you write may be read aloud by text-to-speech, so it must sound natural when spoken, not like a written document.';
+  const isForeignLanguage = FOREIGN_LANGUAGES.includes(subject);
+  const languageLine = isForeignLanguage
+    ? ` You are teaching the child beginner-level ${subject} as a foreign language, appropriate for their age and grade - simple everyday words, greetings, numbers, colors, animals, and short phrases, building up gradually over time. Every time you introduce a new ${subject} word or phrase, immediately follow it with a simple English-style phonetic pronunciation in parentheses right after it, for example bonjour said bon-zhoor, so the child can say it out loud correctly even without hearing a native speaker. Keep new vocabulary to two or three words or phrases per answer so it is not overwhelming, and encourage the child to repeat each word out loud.`
+    : '';
   if (isEarlyYears(profile.grade)){
-    return `You are a cheerful, extremely patient preschool teacher talking to a ${profile.grade} child (age 3-5) in India, and to the parent sitting with them, about "${subject}". Use VERY short sentences (5-8 words), simple everyday words, and lots of encouragement ("Well done!", "Great try!"). Include fun sounds, rhymes, or a tiny story where it helps. Suggest one simple hands-on activity the parent can do with the child (e.g. "count 5 spoons together"). Never use paragraphs — use short lines. Keep the whole reply under 80 words. Address the parent briefly if useful, but keep the core message speakable to a small child.${styleLine}${langLine}`;
+    return `You are a cheerful, extremely patient preschool teacher talking to a ${profile.grade} child (age 3-5) in India, and to the parent sitting with them, about "${subject}". Use VERY short sentences (5-8 words), simple everyday words, and lots of encouragement ("Well done!", "Great try!"). Include fun sounds, rhymes, or a tiny story where it helps. Suggest one simple hands-on activity the parent can do with the child (e.g. "count 5 spoons together"). Never use paragraphs — use short lines. Keep the whole reply under 80 words. Address the parent briefly if useful, but keep the core message speakable to a small child.${styleLine}${languageLine}${langLine}`;
   }
-  return `You are a warm, patient CBSE tutor helping a Class ${profile.grade} student in India understand "${subject}"${topic ? (', specifically the topic "'+topic+'"') : ''}. Match your explanation depth to the NCERT/CBSE syllabus for this grade. Use simple language, short paragraphs, and relatable Indian examples. When the student asks a problem to solve, guide them step by step with questions rather than just giving the final answer immediately, unless they explicitly ask for the answer. Keep replies concise (under 150 words) and encouraging.${styleLine}${langLine}`;
+  return `You are a warm, patient CBSE tutor helping a Class ${profile.grade} student in India understand "${subject}"${topic ? (', specifically the topic "'+topic+'"') : ''}. Match your explanation depth to the NCERT/CBSE syllabus for this grade. Use simple language, short paragraphs, and relatable Indian examples. When the student asks a problem to solve, guide them step by step with questions rather than just giving the final answer immediately, unless they explicitly ask for the answer. Keep replies concise (under 150 words) and encouraging.${styleLine}${languageLine}${langLine}`;
 }
 
 async function sendChat(text){
@@ -759,12 +769,19 @@ async function generateQuiz(){
   state.quizSubmitted = false;
   render();
   const early = isEarlyYears(profile.grade);
-  const sys = early
-    ? `You generate very simple picture-style quizzes for a preschool child (age 3-5) in India, to be read aloud by a parent. Respond with ONLY valid JSON, no markdown fences, no preamble, matching exactly this schema: {"questions":[{"question":"string","options":["a","b","c","d"],"correct":0,"explanation":"short string"}]}. Rules: question text under 10 words; each option should be very short and include a relevant emoji (e.g. "3 🍎" or "Red 🔴" or "Cat 🐱"); only 3 options per question, not 4; explanations under 12 words and encouraging. Create exactly 4 questions.`
-    : `You generate CBSE-aligned multiple choice quizzes for Indian school students. Respond with ONLY valid JSON, no markdown fences, no preamble, matching exactly this schema: {"questions":[{"question":"string","options":["a","b","c","d"],"correct":0,"explanation":"short string"}]}. Create exactly 5 questions.`;
-  const user = early
-    ? `${profile.grade} child, subject: ${state.activeSubject}${state.topic ? ', topic: '+state.topic : ''}. Create a fun, very easy picture-style quiz appropriate for this age.`
-    : `Class ${profile.grade} student, subject: ${state.activeSubject}${state.topic ? ', topic: '+state.topic : ''}. Create 5 CBSE-syllabus-appropriate multiple choice questions at the right difficulty for this grade.`;
+  const isForeignLanguage = FOREIGN_LANGUAGES.includes(state.activeSubject);
+  let sys, user;
+  if (isForeignLanguage){
+    sys = `You generate beginner-level foreign language vocabulary quizzes for a child in India learning a new language for fun. Respond with ONLY valid JSON, no markdown fences, no preamble, matching exactly this schema: {"questions":[{"question":"string","options":["a","b","c","d"],"correct":0,"explanation":"short string"}]}. Test simple everyday words, greetings, numbers, colors, or animals appropriate for the child's age. Include the English meaning in the question and the foreign word plus a simple phonetic pronunciation in the options, for example bonjour said bon-zhoor. Explanations should reinforce the correct pronunciation briefly. Create exactly ${early ? 4 : 5} questions${early ? ' with only 3 options each' : ''}.`;
+    user = `${early ? profile.grade+' child' : 'Class '+profile.grade+' student'}, learning ${state.activeSubject}${state.topic ? ' - focus: '+state.topic : ''} for the first time. Create a fun, encouraging beginner vocabulary quiz at the right difficulty for this age.`;
+  } else {
+    sys = early
+      ? `You generate very simple picture-style quizzes for a preschool child (age 3-5) in India, to be read aloud by a parent. Respond with ONLY valid JSON, no markdown fences, no preamble, matching exactly this schema: {"questions":[{"question":"string","options":["a","b","c","d"],"correct":0,"explanation":"short string"}]}. Rules: question text under 10 words; each option should be very short and include a relevant emoji (e.g. "3 🍎" or "Red 🔴" or "Cat 🐱"); only 3 options per question, not 4; explanations under 12 words and encouraging. Create exactly 4 questions.`
+      : `You generate CBSE-aligned multiple choice quizzes for Indian school students. Respond with ONLY valid JSON, no markdown fences, no preamble, matching exactly this schema: {"questions":[{"question":"string","options":["a","b","c","d"],"correct":0,"explanation":"short string"}]}. Create exactly 5 questions.`;
+    user = early
+      ? `${profile.grade} child, subject: ${state.activeSubject}${state.topic ? ', topic: '+state.topic : ''}. Create a fun, very easy picture-style quiz appropriate for this age.`
+      : `Class ${profile.grade} student, subject: ${state.activeSubject}${state.topic ? ', topic: '+state.topic : ''}. Create 5 CBSE-syllabus-appropriate multiple choice questions at the right difficulty for this grade.`;
+  }
   try {
     let raw = await callClaude(sys, user);
     raw = raw.replace(/```json|```/g,"").trim();
