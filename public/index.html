@@ -302,18 +302,18 @@
   /* Talking teacher avatar */
   .teacher-wrap { text-align: center; margin: 10px 0 20px; }
   .avatar-teacher {
-    width: 84px; height: 84px; border-radius: 50%;
+    width: 92px; height: 92px; border-radius: 50%;
     margin: 0 auto; position: relative;
-    display: flex; flex-direction: column; align-items: center; justify-content: center;
     box-shadow: 0 3px 10px rgba(0,0,0,0.12);
     transition: transform 0.2s ease;
+    overflow: hidden;
   }
-  .avatar-teacher.talking { transform: scale(1.04); }
-  .avatar-eyes { display: flex; gap: 16px; }
-  .avatar-eye { width: 9px; height: 9px; border-radius: 50%; background: #1B2A41; animation: avatarBlink 4.5s infinite; }
-  .avatar-mouth { width: 24px; height: 5px; background: #1B2A41; border-radius: 4px; margin-top: 12px; transition: all 0.12s ease; }
-  .avatar-teacher.talking .avatar-mouth { animation: avatarTalk 0.32s infinite ease-in-out; }
-  @keyframes avatarTalk { 0%,100% { height: 5px; width: 24px; border-radius: 4px; } 50% { height: 14px; width: 17px; border-radius: 50%; } }
+  .avatar-teacher.talking { transform: scale(1.05); }
+  .avatar-teacher svg { width: 100%; height: 100%; display: block; }
+  .avatar-teacher .eye { transform-box: fill-box; transform-origin: center; animation: avatarBlink 4.5s infinite; }
+  .avatar-teacher .mouth { transform-box: fill-box; transform-origin: center; transition: transform 0.12s ease; }
+  .avatar-teacher.talking .mouth { animation: avatarTalk 0.28s infinite ease-in-out; }
+  @keyframes avatarTalk { 0%,100% { transform: scaleY(1); } 50% { transform: scaleY(2.3); } }
   @keyframes avatarBlink { 0%, 90%, 100% { transform: scaleY(1); } 95% { transform: scaleY(0.15); } }
   .teacher-name { font-size: 12.5px; color: var(--ink-soft); margin-top: 8px; font-weight: 600; }
   .lang-toggle { display: flex; justify-content: center; gap: 6px; margin-top: 10px; }
@@ -467,6 +467,30 @@ const SUBJECT_COLORS = {
   "Spanish": "#E4572E", "French": "#3E5C9A", "Chinese": "#C1272D", "German": "#8C6A3F"
 };
 function subjColor(s){ return SUBJECT_COLORS[s] || "#5B6B85"; }
+
+// A simple, friendly illustrated teacher character - the eyes and mouth are
+// separately classed so the existing blink/talk CSS animations can target them.
+function teacherAvatarSVG(subjectHex){
+  return `
+    <svg viewBox="0 0 120 120" xmlns="http://www.w3.org/2000/svg">
+      <circle cx="60" cy="66" r="40" fill="#F6D2A8"/>
+      <path d="M20,66 C20,26 100,26 100,66 C100,42 82,32 60,32 C38,32 20,42 20,66 Z" fill="#33221A"/>
+      <path d="M18,62 C13,84 21,102 30,109 L30,68 C24,64 20,62 18,62 Z" fill="#33221A"/>
+      <path d="M102,62 C107,84 99,102 90,109 L90,68 C96,64 100,62 102,62 Z" fill="#33221A"/>
+      <ellipse class="eye" cx="46" cy="66" rx="4.2" ry="5.4" fill="#2B1B12"/>
+      <ellipse class="eye" cx="74" cy="66" rx="4.2" ry="5.4" fill="#2B1B12"/>
+      <path d="M39,57 Q46,52 53,57" stroke="#2B1B12" stroke-width="2.2" fill="none" stroke-linecap="round"/>
+      <path d="M67,57 Q74,52 81,57" stroke="#2B1B12" stroke-width="2.2" fill="none" stroke-linecap="round"/>
+      <circle cx="60" cy="58" r="2.3" fill="${subjectHex}"/>
+      <ellipse cx="40" cy="80" rx="7" ry="4.5" fill="#F2A7A0" opacity="0.45"/>
+      <ellipse cx="80" cy="80" rx="7" ry="4.5" fill="#F2A7A0" opacity="0.45"/>
+      <path class="mouth" d="M48,86 Q60,94 72,86" stroke="#8C4A46" stroke-width="3.4" fill="none" stroke-linecap="round"/>
+      <circle cx="18" cy="76" r="2.4" fill="#E8A33D"/>
+      <circle cx="102" cy="76" r="2.4" fill="#E8A33D"/>
+      <path d="M14,110 Q60,88 106,110 L106,120 L14,120 Z" fill="${subjectHex}"/>
+    </svg>
+  `;
+}
 
 const EARLY_YEARS = ["Nursery","LKG","UKG"];
 function isEarlyYears(grade){ return EARLY_YEARS.includes(grade); }
@@ -979,10 +1003,8 @@ function renderChat(){
 
   // Talking teacher avatar
   const teacherWrap = el('div', {class:'teacher-wrap'});
-  const avatar = el('div', {id:'teacherAvatar', class:'avatar-teacher'+(state.talking?' talking':''), style:`background:${subjectHex}22; border:2px solid ${subjectHex};`}, [
-    el('div', {class:'avatar-eyes'}, [el('div',{class:'avatar-eye'}), el('div',{class:'avatar-eye'})]),
-    el('div', {class:'avatar-mouth'})
-  ]);
+  const avatar = el('div', {id:'teacherAvatar', class:'avatar-teacher'+(state.talking?' talking':'')});
+  avatar.innerHTML = teacherAvatarSVG(subjectHex);
   teacherWrap.appendChild(avatar);
   teacherWrap.appendChild(el('div', {class:'teacher-name'}, ['Your '+state.activeSubject+' Tutor']));
 
