@@ -3,12 +3,13 @@
 // API calls (/api/*) always go to the network - tutoring and quizzes need
 // a live connection, so this does NOT try to fake offline AI responses.
 
-const CACHE_NAME = 'apna-tutor-shell-v1';
+const CACHE_NAME = 'apna-tutor-shell-v2';
 const SHELL_FILES = [
   '/',
   '/manifest.json',
   '/icons/icon-192.png',
   '/icons/icon-512.png',
+  '/images/teacher-avatar.jpg',
   '/offline.html',
 ];
 

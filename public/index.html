@@ -28,14 +28,19 @@
     --radius: 14px;
   }
   * { box-sizing: border-box; }
-  body {
+  html, body {
+    height: 100vh;
+    height: 100dvh;
     margin: 0;
+    overflow: hidden;
+  }
+  body {
     background: var(--bg);
     color: var(--ink);
     font-family: 'Inter', sans-serif;
     -webkit-font-smoothing: antialiased;
   }
-  .app { display: flex; min-height: 100vh; }
+  .app { display: flex; height: 100%; }
   .sidebar-backdrop { display: none; }
   .menu-btn {
     display: none;
@@ -55,6 +60,8 @@
     display: flex;
     flex-direction: column;
     gap: 20px;
+    height: 100%;
+    overflow-y: auto;
   }
   .brand {
     font-family: 'Roboto Slab', serif;
@@ -193,7 +200,7 @@
   .topic-hint { font-size: 11px; color: #8DA0C0; line-height: 1.4; }
 
   /* ---------- Main ---------- */
-  .main { flex: 1; display: flex; flex-direction: column; min-width: 0; }
+  .main { flex: 1; display: flex; flex-direction: column; min-width: 0; height: 100%; overflow: hidden; }
   .topbar {
     padding: 18px 28px;
     border-bottom: 1px solid var(--line);
@@ -220,7 +227,7 @@
   }
   .tab.active { color: var(--navy); border-color: var(--gold); }
 
-  .panel { flex: 1; padding: 24px 28px; overflow-y: auto; }
+  .panel { flex: 1; padding: 24px 28px; overflow-y: auto; min-height: 0; }
   .empty-state {
     max-width: 420px;
     margin: 60px auto;
@@ -335,16 +342,19 @@
     width: 92px; height: 92px; border-radius: 50%;
     margin: 0 auto; position: relative;
     box-shadow: 0 3px 10px rgba(0,0,0,0.12);
-    transition: transform 0.2s ease;
+    transition: transform 0.2s ease, box-shadow 0.2s ease;
     overflow: hidden;
+    border: 3px solid var(--subject-ring, var(--navy));
   }
-  .avatar-teacher.talking { transform: scale(1.05); }
-  .avatar-teacher svg { width: 100%; height: 100%; display: block; }
-  .avatar-teacher .eye { transform-box: fill-box; transform-origin: center; animation: avatarBlink 4.5s infinite; }
-  .avatar-teacher .mouth { transform-box: fill-box; transform-origin: center; transition: transform 0.12s ease; }
-  .avatar-teacher.talking .mouth { animation: avatarTalk 0.28s infinite ease-in-out; }
-  @keyframes avatarTalk { 0%,100% { transform: scaleY(1); } 50% { transform: scaleY(2.3); } }
-  @keyframes avatarBlink { 0%, 90%, 100% { transform: scaleY(1); } 95% { transform: scaleY(0.15); } }
+  .avatar-teacher.talking {
+    transform: scale(1.05);
+    animation: avatarGlow 0.9s ease-in-out infinite;
+  }
+  .avatar-teacher img { width: 100%; height: 100%; display: block; object-fit: cover; }
+  @keyframes avatarGlow {
+    0%, 100% { box-shadow: 0 3px 10px rgba(0,0,0,0.12), 0 0 0 0 rgba(232,163,61,0.5); }
+    50% { box-shadow: 0 3px 14px rgba(0,0,0,0.18), 0 0 0 6px rgba(232,163,61,0.15); }
+  }
   .teacher-name { font-size: 12.5px; color: var(--ink-soft); margin-top: 8px; font-weight: 600; }
   .lang-toggle { display: flex; justify-content: center; gap: 6px; margin-top: 10px; }
   .lang-btn {
@@ -499,107 +509,6 @@ const SUBJECT_COLORS = {
 };
 function subjColor(s){ return SUBJECT_COLORS[s] || "#5B6B85"; }
 
-// A simple, friendly illustrated teacher character - the eyes and mouth are
-// separately classed so the existing blink/talk CSS animations can target them.
-function teacherAvatarSVG(subjectHex){
-  // Darken the subject color a touch for shadow/fold lines on the kurta collar.
-  const shadeHex = shadeColor(subjectHex, -18);
-  return `
-    <svg viewBox="0 0 140 168" xmlns="http://www.w3.org/2000/svg">
-      <defs>
-        <linearGradient id="skinGrad" x1="0" y1="0" x2="0" y2="1">
-          <stop offset="0%" stop-color="#FCE3C2"/>
-          <stop offset="100%" stop-color="#F0BE8D"/>
-        </linearGradient>
-        <linearGradient id="hairGrad" x1="0" y1="0" x2="0" y2="1">
-          <stop offset="0%" stop-color="#4A3221"/>
-          <stop offset="100%" stop-color="#221208"/>
-        </linearGradient>
-        <radialGradient id="cheekGrad" cx="50%" cy="50%" r="50%">
-          <stop offset="0%" stop-color="#F0958A" stop-opacity="0.55"/>
-          <stop offset="100%" stop-color="#F0958A" stop-opacity="0"/>
-        </radialGradient>
-        <linearGradient id="lipGrad" x1="0" y1="0" x2="0" y2="1">
-          <stop offset="0%" stop-color="#C1706A"/>
-          <stop offset="100%" stop-color="#96473F"/>
-        </linearGradient>
-        <linearGradient id="irisGrad" x1="0" y1="0" x2="0" y2="1">
-          <stop offset="0%" stop-color="#7A4A26"/>
-          <stop offset="100%" stop-color="#4A2C14"/>
-        </linearGradient>
-      </defs>
-
-      <!-- shoulders / kurta collar -->
-      <path d="M6,168 C6,140 34,124 70,124 C106,124 134,140 134,168 Z" fill="${subjectHex}"/>
-      <path d="M6,168 C6,140 34,124 70,124 C106,124 134,140 134,168 L134,158 C120,146 96,134 70,134 C44,134 20,146 6,158 Z" fill="${shadeHex}" opacity="0.55"/>
-
-      <!-- neck -->
-      <path d="M56,102 L84,102 L84,130 C74,136 66,136 56,130 Z" fill="url(#skinGrad)"/>
-      <path d="M56,108 L84,108 L84,116 C74,120 66,120 56,116 Z" fill="#D9A06E" opacity="0.35"/>
-
-      <!-- hair back -->
-      <path d="M18,58 C10,90 16,118 30,132 L34,132 L34,64 Z" fill="url(#hairGrad)"/>
-      <path d="M122,58 C130,90 124,118 110,132 L106,132 L106,64 Z" fill="url(#hairGrad)"/>
-
-      <!-- face -->
-      <ellipse cx="70" cy="76" rx="38" ry="44" fill="url(#skinGrad)"/>
-
-      <!-- ears -->
-      <ellipse cx="30" cy="82" rx="5.5" ry="8" fill="url(#skinGrad)"/>
-      <ellipse cx="110" cy="82" rx="5.5" ry="8" fill="url(#skinGrad)"/>
-      <circle cx="30" cy="88" r="2.6" fill="#E8A33D"/>
-      <circle cx="110" cy="88" r="2.6" fill="#E8A33D"/>
-
-      <!-- hair top/front -->
-      <path d="M24,66 C24,24 116,24 116,66 C116,50 108,36 96,32 C100,44 96,50 90,44 C86,54 78,40 70,42 C62,40 54,54 50,44 C44,50 40,44 44,32 C32,36 24,50 24,66 Z" fill="url(#hairGrad)"/>
-      <path d="M68,32 L67,44" stroke="#2A170C" stroke-width="1.2" opacity="0.5" stroke-linecap="round"/>
-
-      <!-- eyebrows -->
-      <path d="M46,64 Q54,57 63,63" stroke="#3A2314" stroke-width="2.6" fill="none" stroke-linecap="round"/>
-      <path d="M77,63 Q86,57 94,64" stroke="#3A2314" stroke-width="2.6" fill="none" stroke-linecap="round"/>
-
-      <!-- eyes -->
-      <g class="eye">
-        <ellipse cx="54" cy="76" rx="6.4" ry="4.6" fill="#FFFFFF"/>
-        <circle cx="54" cy="76" r="3.6" fill="url(#irisGrad)"/>
-        <circle cx="54" cy="76" r="1.6" fill="#1A0E06"/>
-        <circle cx="52.6" cy="74.6" r="0.9" fill="#FFFFFF"/>
-        <path d="M47.5,76 Q54,70.5 60.5,76" stroke="#2A170C" stroke-width="1.4" fill="none" stroke-linecap="round"/>
-      </g>
-      <g class="eye">
-        <ellipse cx="86" cy="76" rx="6.4" ry="4.6" fill="#FFFFFF"/>
-        <circle cx="86" cy="76" r="3.6" fill="url(#irisGrad)"/>
-        <circle cx="86" cy="76" r="1.6" fill="#1A0E06"/>
-        <circle cx="84.6" cy="74.6" r="0.9" fill="#FFFFFF"/>
-        <path d="M79.5,76 Q86,70.5 92.5,76" stroke="#2A170C" stroke-width="1.4" fill="none" stroke-linecap="round"/>
-      </g>
-
-      <!-- bindi -->
-      <circle cx="70" cy="65" r="2.4" fill="${subjectHex}"/>
-
-      <!-- nose -->
-      <path d="M68,80 Q70,88 67,91 Q70,93 73,91" stroke="#D9A06E" stroke-width="1.3" fill="none" stroke-linecap="round" opacity="0.7"/>
-
-      <!-- blush -->
-      <ellipse cx="48" cy="94" rx="9" ry="6" fill="url(#cheekGrad)"/>
-      <ellipse cx="92" cy="94" rx="9" ry="6" fill="url(#cheekGrad)"/>
-
-      <!-- mouth / lips -->
-      <path class="mouth" d="M56,101 Q63,99 70,100.5 Q77,99 84,101 Q77,110 70,110 Q63,110 56,101 Z" fill="url(#lipGrad)"/>
-      <path d="M58,101 Q70,103 82,101" stroke="#7A3B34" stroke-width="0.8" fill="none" opacity="0.5"/>
-    </svg>
-  `;
-}
-function shadeColor(hex, percent){
-  const num = parseInt(hex.replace('#',''), 16);
-  let r = (num >> 16) + Math.round(255 * (percent/100));
-  let g = ((num >> 8) & 0x00FF) + Math.round(255 * (percent/100));
-  let b = (num & 0x0000FF) + Math.round(255 * (percent/100));
-  r = Math.max(0, Math.min(255, r));
-  g = Math.max(0, Math.min(255, g));
-  b = Math.max(0, Math.min(255, b));
-  return '#' + (0x1000000 + r*0x10000 + g*0x100 + b).toString(16).slice(1);
-}
 
 const EARLY_YEARS = ["Nursery","LKG","UKG"];
 function isEarlyYears(grade){ return EARLY_YEARS.includes(grade); }
@@ -736,8 +645,8 @@ function updateAvatarClass(){
   if (av) av.classList.toggle('talking', state.talking);
 }
 function scrollChatToBottom(){
-  const cw = document.querySelector('.chat-window');
-  if (cw) cw.scrollTop = cw.scrollHeight;
+  const panel = document.querySelector('.panel');
+  if (panel) panel.scrollTop = panel.scrollHeight;
 }
 
 async function checkNeuralVoice(){
@@ -1295,8 +1204,13 @@ function renderChat(){
 
   // Talking teacher avatar
   const teacherWrap = el('div', {class:'teacher-wrap'});
-  const avatar = el('div', {id:'teacherAvatar', class:'avatar-teacher'+(state.talking?' talking':'')});
-  avatar.innerHTML = teacherAvatarSVG(subjectHex);
+  const avatar = el('div', {
+    id:'teacherAvatar',
+    class:'avatar-teacher'+(state.talking?' talking':''),
+    style:`--subject-ring: ${subjectHex};`
+  }, [
+    el('img', {src:'/images/teacher-avatar.jpg', alt:'Your tutor'})
+  ]);
   teacherWrap.appendChild(avatar);
   teacherWrap.appendChild(el('div', {class:'teacher-name'}, ['Your '+state.activeSubject+' Tutor']));
 
