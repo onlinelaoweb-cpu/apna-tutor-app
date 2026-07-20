@@ -369,6 +369,40 @@
   }
   .autospeak-toggle input { cursor: pointer; }
   .voice-mode-note { font-size: 10.5px; color: var(--ink-soft); margin-top: 4px; }
+  .start-call-btn {
+    background: var(--green-ok); color: #fff; border: none;
+    padding: 9px 18px; border-radius: 999px; font-weight: 700; font-size: 13px;
+    cursor: pointer; margin-top: 10px;
+  }
+
+  /* Call mode */
+  .call-mode-wrap {
+    display: flex; flex-direction: column; align-items: center; justify-content: center;
+    min-height: 68vh; text-align: center; padding: 20px; position: relative;
+  }
+  .call-exit-btn {
+    position: absolute; top: 0; right: 0;
+    background: var(--bg-alt); border: 1px solid var(--line); color: var(--ink-soft);
+    padding: 7px 14px; border-radius: 999px; font-size: 12.5px; cursor: pointer;
+  }
+  .call-avatar { width: 168px; height: 168px; border-width: 4px; margin-top: 20px; }
+  .call-status { font-size: 13px; color: var(--ink-soft); margin: 14px 0 4px; font-weight: 600; }
+  .call-caption {
+    max-width: 480px; min-height: 70px; margin: 10px 0 28px;
+    background: var(--bg-alt); border: 1px solid var(--line); border-radius: 14px;
+    padding: 14px 18px;
+  }
+  .call-caption-who { font-size: 11px; color: var(--ink-soft); text-transform: uppercase; letter-spacing: 0.06em; margin-bottom: 6px; font-weight: 700; }
+  .call-caption-text { font-size: 16px; line-height: 1.5; color: var(--ink); }
+  .call-mic-btn {
+    width: 76px; height: 76px; border-radius: 50%;
+    background: var(--navy); color: #fff; border: none; font-size: 30px;
+    cursor: pointer; box-shadow: 0 4px 14px rgba(27,51,88,0.35);
+    transition: transform 0.15s ease;
+  }
+  .call-mic-btn:active { transform: scale(0.95); }
+  .call-mic-btn.listening { background: var(--maroon); animation: pulseMic 1s infinite; }
+  .call-mic-btn:disabled { opacity: 0.5; }
 
   /* Quiz */
   .quiz-shell { max-width: 620px; margin: 0 auto; }
@@ -553,6 +587,7 @@ let state = {
   neuralVoiceAvailable: false,
   currentAudio: null,
   conversationMode: null, // null = default (on for language subjects); true/false = explicit user choice
+  callMode: false,
   micPreview: null, // {text, onConfirm} - shown before a mic recognition result is actually sent
   micNotice: null // {message, retry} - shown when listening fails, errors, or times out
 };
@@ -940,9 +975,8 @@ async function maybeStartWithRecap(profile, subject){
       speakReply(cleaned, {
         onWord: (charIndex) => {
           msg.text = cleaned.slice(0, charIndex);
+          render();
           scrollChatToBottom();
-          const bubbleEl = document.querySelector('.msg.assistant:last-child .bubble');
-          if (bubbleEl) bubbleEl.textContent = msg.text;
         },
         onDone: () => {
           msg.text = cleaned;
@@ -1003,9 +1037,8 @@ async function sendChat(text){
       speakReply(cleaned, {
         onWord: (charIndex) => {
           msg.text = cleaned.slice(0, charIndex);
+          render();
           scrollChatToBottom();
-          const bubbleEl = document.querySelector('.msg.assistant:last-child .bubble');
-          if (bubbleEl) bubbleEl.textContent = msg.text;
         },
         onDone: () => {
           msg.text = cleaned;
@@ -1114,7 +1147,7 @@ function renderSidebar(){
   state.profiles.forEach(p=>{
     const chip = el('div', {
       class: 'profile-chip' + (p.id===state.activeId ? ' active':''),
-      onclick: async ()=>{ stopSpeaking(); stopListening(); state.activeId = p.id; state.activeSubject=null; state.topic=""; state.chat=[]; state.quiz=null; state.pendingImage=null; state.sidebarOpen=false; await saveActiveId(); await loadProgress(p.id); render(); }
+      onclick: async ()=>{ stopSpeaking(); stopListening(); state.callMode=false; state.activeId = p.id; state.activeSubject=null; state.topic=""; state.chat=[]; state.quiz=null; state.pendingImage=null; state.sidebarOpen=false; await saveActiveId(); await loadProgress(p.id); render(); }
     }, [
       el('div', {class:'avatar', style:`background:${colorForProfile(p.id)}`}, [initials(p.name)]),
       el('div', {class:'profile-meta'}, [
@@ -1129,7 +1162,7 @@ function renderSidebar(){
           await fetch('/api/profiles/'+encodeURIComponent(p.id), { method:'DELETE' });
           state.profiles = state.profiles.filter(x=>x.id!==p.id);
           delete state.progress[p.id];
-          if (state.activeId===p.id){ stopSpeaking(); stopListening(); state.activeId = state.profiles[0]?.id || null; state.activeSubject=null; state.chat=[]; state.quiz=null; state.pendingImage=null; saveActiveId(); if(state.activeId) await loadProgress(state.activeId); }
+          if (state.activeId===p.id){ stopSpeaking(); stopListening(); state.callMode=false; state.activeId = state.profiles[0]?.id || null; state.activeSubject=null; state.chat=[]; state.quiz=null; state.pendingImage=null; saveActiveId(); if(state.activeId) await loadProgress(state.activeId); }
           render();
         }
       }, ['×'])
@@ -1177,7 +1210,7 @@ function renderSidebar(){
       const chip = el('div', {
         class: 'subject-chip' + (s===state.activeSubject ? ' active':''),
         style:`background:${subjColor(s)}`,
-        onclick: ()=>{ stopSpeaking(); stopListening(); state.activeSubject=s; state.chat=[]; state.quiz=null; state.quizSubmitted=false; state.pendingImage=null; state.sidebarOpen=false; render(); maybeStartWithRecap(profile, s); }
+        onclick: ()=>{ stopSpeaking(); stopListening(); state.callMode=false; state.activeSubject=s; state.chat=[]; state.quiz=null; state.quizSubmitted=false; state.pendingImage=null; state.sidebarOpen=false; render(); maybeStartWithRecap(profile, s); }
       }, [s]);
       subjGrid.appendChild(chip);
     });
@@ -1194,10 +1227,76 @@ function renderSidebar(){
   return wrap;
 }
 
+function renderCallMode(profile){
+  const subjectHex = subjColor(state.activeSubject);
+  const wrap = el('div', {class:'call-mode-wrap'});
+
+  wrap.appendChild(el('button', {class:'call-exit-btn', onclick:()=>{
+    stopSpeaking(); stopListening(); state.callMode = false; render();
+  }}, ['✕ End call']));
+
+  wrap.appendChild(el('div', {
+    class:'avatar-teacher call-avatar'+(state.talking?' talking':''),
+    style:`--subject-ring: ${subjectHex};`
+  }, [
+    el('img', {src:'/images/teacher-avatar.jpg', alt:'Your tutor'})
+  ]));
+  wrap.appendChild(el('div', {class:'teacher-name'}, ['Your '+state.activeSubject+' Tutor']));
+
+  let status = 'Tap the mic to talk';
+  if (state.chatLoading) status = 'Thinking…';
+  else if (state.talking) status = 'Speaking…';
+  else if (state.listening) status = 'Listening…';
+  wrap.appendChild(el('div', {class:'call-status'}, [status]));
+
+  const lastMsg = state.chat.length ? state.chat[state.chat.length - 1] : null;
+  const captionText = lastMsg ? lastMsg.text : 'Tap the mic and say hello to get started!';
+  const captionRole = lastMsg ? lastMsg.role : 'assistant';
+  wrap.appendChild(el('div', {class:'call-caption'}, [
+    el('div', {class:'call-caption-who'}, [captionRole === 'user' ? profile.name+' said' : 'Tutor']),
+    el('div', {class:'call-caption-text'}, [captionText || ' '])
+  ]));
+
+  if (state.micPreview){
+    wrap.appendChild(el('div', {class:'mic-preview-chip'}, [
+      el('div', {class:'mic-preview-text'}, [
+        el('span', {class:'mic-preview-label'}, ['🎤 Heard: ']),
+        el('span', {class:'mic-preview-heard'}, ['"'+state.micPreview.text+'"'])
+      ]),
+      el('div', {class:'mic-preview-actions'}, [
+        el('button', {class:'mic-preview-btn send', onclick: confirmMicPreview}, ['Send ✓']),
+        el('button', {class:'mic-preview-btn retry', onclick: retryMicPreview}, ['Try again']),
+        el('button', {class:'mic-preview-btn cancel', onclick: cancelMicPreview}, ['✕'])
+      ])
+    ]));
+  }
+  if (state.micNotice){
+    wrap.appendChild(el('div', {class:'mic-notice-chip'}, [
+      el('div', {class:'mic-notice-text'}, ['⚠️ ' + state.micNotice.message]),
+      el('div', {class:'mic-preview-actions'}, [
+        el('button', {class:'mic-preview-btn retry', onclick: state.micNotice.retry}, ['Try again']),
+        el('button', {class:'mic-preview-btn cancel', onclick: cancelMicNotice}, ['✕'])
+      ])
+    ]));
+  }
+
+  wrap.appendChild(el('button', {
+    class:'call-mic-btn'+(state.listening?' listening':''),
+    disabled: state.chatLoading ? 'true' : null,
+    onclick:()=>{
+      if (state.listening){ stopListening(); render(); return; }
+      startListening((text)=>{ if(text && text.trim() && !state.chatLoading) sendChat(text); });
+    }
+  }, [state.listening ? '●' : '🎤']));
+
+  return wrap;
+}
+
 function renderChat(){
   const profile = activeProfile();
   if (!profile) return el('div', {class:'empty-state'}, [el('h2',{},['Welcome!']), el('p',{},['Add your first child on the left to get started.'])]);
   if (!state.activeSubject) return el('div', {class:'empty-state'}, [el('h2',{},['Pick a subject']), el('p',{},['Choose a subject on the left so the tutor can help '+profile.name+'.'])]);
+  if (state.callMode) return renderCallMode(profile);
 
   const wrap = el('div', {});
   const subjectHex = subjColor(state.activeSubject);
@@ -1213,6 +1312,14 @@ function renderChat(){
   ]);
   teacherWrap.appendChild(avatar);
   teacherWrap.appendChild(el('div', {class:'teacher-name'}, ['Your '+state.activeSubject+' Tutor']));
+
+  const callBtn = el('button', {class:'start-call-btn', onclick:()=>{
+    state.autoSpeak = true;
+    state.conversationMode = true;
+    state.callMode = true;
+    render();
+  }}, ['📞 Talk to your tutor']);
+  teacherWrap.appendChild(callBtn);
 
   const langToggle = el('div', {class:'lang-toggle'}, [
     el('button', {class:'lang-btn'+(state.ttsLang==='en'?' active':''), onclick:()=>{ stopSpeaking(); state.ttsLang='en'; render(); }}, ['English']),
