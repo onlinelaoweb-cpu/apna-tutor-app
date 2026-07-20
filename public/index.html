@@ -312,6 +312,12 @@
   .mic-preview-btn.send { background: var(--green-ok); color: #fff; }
   .mic-preview-btn.retry { background: var(--bg-alt); border: 1px solid var(--line); color: var(--ink); }
   .mic-preview-btn.cancel { background: transparent; color: var(--ink-soft); padding: 7px 10px; }
+  .mic-notice-chip {
+    max-width: 720px; margin: 0 auto 6px;
+    background: #FDECEC; border: 1.5px solid var(--maroon);
+    border-radius: 10px; padding: 10px 12px;
+  }
+  .mic-notice-text { font-size: 13px; color: var(--ink); margin-bottom: 8px; line-height: 1.4; }
   .msg-image { max-width: 220px; border-radius: 10px; margin-top: 6px; display: block; }
 
   /* Talking teacher avatar */
@@ -550,7 +556,8 @@ let state = {
   neuralVoiceAvailable: false,
   currentAudio: null,
   conversationMode: null, // null = default (on for language subjects); true/false = explicit user choice
-  micPreview: null // {text, onConfirm} - shown before a mic recognition result is actually sent
+  micPreview: null, // {text, onConfirm} - shown before a mic recognition result is actually sent
+  micNotice: null // {message, retry} - shown when listening fails, errors, or times out
 };
 
 function shouldAutoSpeak(profile){
@@ -691,27 +698,62 @@ async function speakReply(text, callbacks){
 
 let activeRecognition = null;
 let micPreviewTimer = null;
+let micWatchdogTimer = null;
+let micNoticeTimer = null;
 
 function startListening(onResult){
   const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
   if (!SR){ alert('Voice input is not supported in this browser. Try Chrome or Edge.'); return; }
+  cancelMicNotice();
   const recog = new SR();
   recog.lang = state.ttsLang === 'hi' ? 'hi-IN' : 'en-IN';
   recog.interimResults = false;
   recog.maxAlternatives = 1;
   recog.onresult = (e)=>{
+    clearTimeout(micWatchdogTimer);
     const text = e.results[0][0].transcript;
     showMicPreview(text, onResult);
   };
-  recog.onerror = ()=>{ state.listening = false; activeRecognition = null; render(); };
-  recog.onend = ()=>{ state.listening = false; activeRecognition = null; render(); };
+  recog.onerror = (e)=>{
+    clearTimeout(micWatchdogTimer);
+    state.listening = false; activeRecognition = null;
+    let msg;
+    if (e.error === 'not-allowed' || e.error === 'permission-denied') msg = "Microphone access is blocked. Please allow microphone permission for this site in your browser settings, then try again.";
+    else if (e.error === 'network') msg = "Couldn't reach the voice service. This usually means a slow or unstable internet connection - please check it and try again.";
+    else if (e.error === 'no-speech') msg = "I didn't hear anything. Tap the mic and try again.";
+    else msg = "Voice input had a problem. Tap the mic to try again.";
+    showMicNotice(msg, onResult);
+  };
+  recog.onend = ()=>{ clearTimeout(micWatchdogTimer); state.listening = false; activeRecognition = null; render(); };
   activeRecognition = recog;
   state.listening = true; render();
   recog.start();
+  // Some browsers just hang with no result, no error, and no end event at all when the
+  // network is too slow to reach the speech service - this makes sure it never gets
+  // stuck listening forever with no feedback.
+  micWatchdogTimer = setTimeout(()=>{
+    if (activeRecognition === recog){
+      try{ recog.abort(); }catch(err){}
+      activeRecognition = null; state.listening = false;
+      showMicNotice("That's taking too long, usually because of a slow or unstable internet connection. Please check your connection and try again.", onResult);
+    }
+  }, 8000);
 }
 function stopListening(){
+  clearTimeout(micWatchdogTimer);
   if (activeRecognition){ activeRecognition.onend = null; activeRecognition.onerror = null; try{ activeRecognition.abort(); }catch(e){} activeRecognition = null; }
   state.listening = false;
+}
+function showMicNotice(message, retryOnResult){
+  clearTimeout(micNoticeTimer);
+  state.micNotice = { message, retry: ()=>{ cancelMicNotice(); startListening(retryOnResult); } };
+  render();
+  micNoticeTimer = setTimeout(cancelMicNotice, 7000);
+}
+function cancelMicNotice(){
+  clearTimeout(micNoticeTimer);
+  state.micNotice = null;
+  render();
 }
 
 // Shows what the mic actually heard before sending it, since short sounds/single words
@@ -1248,6 +1290,17 @@ function renderChat(){
         el('button', {class:'mic-preview-btn send', onclick: confirmMicPreview}, ['Send ✓']),
         el('button', {class:'mic-preview-btn retry', onclick: retryMicPreview}, ['Try again']),
         el('button', {class:'mic-preview-btn cancel', onclick: cancelMicPreview}, ['✕'])
+      ])
+    ]);
+    wrap.appendChild(chip);
+  }
+
+  if (state.micNotice){
+    const chip = el('div', {class:'mic-notice-chip'}, [
+      el('div', {class:'mic-notice-text'}, ['⚠️ ' + state.micNotice.message]),
+      el('div', {class:'mic-preview-actions'}, [
+        el('button', {class:'mic-preview-btn retry', onclick: state.micNotice.retry}, ['Try again']),
+        el('button', {class:'mic-preview-btn cancel', onclick: cancelMicNotice}, ['✕'])
       ])
     ]);
     wrap.appendChild(chip);
