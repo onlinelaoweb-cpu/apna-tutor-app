@@ -43,14 +43,22 @@ Then open http://localhost:3000 in your browser.
 5. Visit the URL — you should see the app live. Add your children's profiles
    and try a chat question or quiz.
 
-## Notes on data
+## Making profiles permanent (important - do this once)
 
-- All child profiles and quiz history are stored in a `data.json` file next to
-  the server code — simple and enough for a family app.
-- On Railway's free/basic tier, the filesystem can reset on redeploys. If you
-  want quiz history to survive redeploys long-term, add a **Railway Volume**
-  (Settings → Volumes) mounted at the project folder — Railway's docs walk
-  through this in a couple of clicks.
+By default, Railway wipes its filesystem on every redeploy — which means every
+time you push an updated file, your child profiles, quiz history, and topic
+log get reset to zero. Fix this once with a **Railway Volume**, a small
+persistent disk that survives redeploys:
+
+1. In Railway, open your service → **Settings → Volumes → + New Volume**
+2. Set the **mount path** to `/data`
+3. Go to **Variables** and add: `DATA_DIR` = `/data`
+4. Redeploy (Railway will do this automatically after saving the variable)
+
+That's it — your database file now lives on the persistent volume instead of
+the app code's ephemeral filesystem, so future updates never touch it again.
+If you skip this step, everything still works, but profiles reset to empty
+on every redeploy.
 
 ## Notes on cost
 

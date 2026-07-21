@@ -1,9 +1,13 @@
 // Minimal file-based JSON store. Good enough for a small family app.
-// Data lives in data.json next to this file.
+// Data lives in data.json inside DATA_DIR - set DATA_DIR to a Railway Volume mount
+// path (e.g. /data) so profiles and progress survive redeploys. Without it, this
+// falls back to storing next to the code, which Railway wipes on every redeploy.
 const fs = require('fs');
 const path = require('path');
 
-const DB_PATH = path.join(__dirname, 'data.json');
+const DATA_DIR = process.env.DATA_DIR || __dirname;
+if (!fs.existsSync(DATA_DIR)) fs.mkdirSync(DATA_DIR, { recursive: true });
+const DB_PATH = path.join(DATA_DIR, 'data.json');
 
 function readDB() {
   try {

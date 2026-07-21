@@ -870,6 +870,7 @@ async function saveProgressEntry(profileId, entry){
 
 function activeProfile(){ return state.profiles.find(p=>p.id===state.activeId) || null; }
 function initials(name){ return name.trim().split(/\s+/).map(w=>w[0]).slice(0,2).join('').toUpperCase(); }
+
 function colorForProfile(id){
   const colors = ["#E8A33D","#4C9F70","#7C5CBF","#C2536B","#3B6EA5"];
   let h=0; for(const c of id) h = (h*31 + c.charCodeAt(0)) % colors.length;
@@ -916,7 +917,7 @@ function tutorSystemPrompt(profile, subject, topic){
     ? ' Respond entirely in warm, simple Hindi using Devanagari script (not Roman/Hinglish transliteration). Keep proper nouns, numbers, and technical terms without a common Hindi equivalent in English, but write everything else in Hindi.'
     : '';
   const styleLine = ' Write the way a real teacher would speak out loud in the room, in natural flowing sentences. Do not use any markdown formatting: no asterisks, no hash symbols, no bullet points or numbered lists, no dashes as list markers, no emojis, no backticks. If you want to list a few things, weave them into a sentence with words like "first," "next," and "also" instead of a list. Every word you write may be read aloud by text-to-speech, so it must sound natural when spoken, not like a written document.';
-  const turnTakingLine = ' This is a live, real-time one-on-one lesson, not a lecture - behave exactly like a tuition teacher sitting across from the child. In every single reply, say or teach only ONE small thing: one fact, one short explanation, one question, or one word or phrase to repeat back. Then stop completely and wait - do not ask a second question or introduce a second idea in the same reply. Look at the conversation history before you respond: if your last turn asked the child to answer a question or repeat a word, your very next reply must first react to what they actually said (praise them warmly if correct, or gently correct them and repeat the right version once if not) before you move on to anything new. Never bundle "here is the explanation, now here are three questions" into one reply - one step per turn, always. The child\'s messages may come from imperfect voice recognition, especially for very short sounds or single letters, so if their message seems completely unrelated to what you just asked or does not make sense in context, do not treat it as a real answer or change topic - instead, warmly say you did not quite catch that and ask them to try saying or typing it again.';
+  const turnTakingLine = ' This is a live, real-time one-on-one lesson, not a lecture - behave exactly like a tuition teacher sitting across from the child. In every single reply, say or teach only ONE small thing: one fact, one short explanation, one question, or one word or phrase to repeat back. Then stop completely and wait - do not ask a second question or introduce a second idea in the same reply. Look at the conversation history before you respond: if your last turn asked the child to answer a question or repeat a word, your very next reply must first react to what they actually said (praise them warmly if correct, or gently correct them and repeat the right version once if not) before you move on to anything new. Never bundle "here is the explanation, now here are three questions" into one reply - one step per turn, always. The child\'s messages may come from imperfect voice recognition, especially for very short sounds or single letters, so if their message seems completely unrelated to what you just asked or does not make sense in context, do not treat it as a real answer or change topic - instead, warmly say you did not quite catch that and ask them to try saying or typing it again. You are running a structured, ongoing course in this subject across many sessions, not just answering one-off questions - once the child has shown they understand the current small topic (a few correct responses in a row), move on to the next logical topic in a sensible curriculum sequence for this grade rather than lingering or stopping, so the course keeps making real progress over time.';
   const isForeignLanguage = FOREIGN_LANGUAGES.includes(subject);
   const languageLine = isForeignLanguage
     ? ` You are teaching the child beginner-level ${subject} as a foreign language, appropriate for their age and grade - simple everyday words, greetings, numbers, colors, animals, and short phrases, building up gradually over time. Teach exactly ONE new word or phrase per reply. Immediately follow it with a simple English-style phonetic pronunciation in parentheses, for example bonjour said bon-zhoor, then explicitly ask the child to say it back to you, for example "Now you try saying bonjour" - and then stop and wait. Do not introduce a second word until they have responded to the first one.`
@@ -953,20 +954,46 @@ async function maybeStartWithRecap(profile, subject){
     const res = await fetch('/api/topics/' + encodeURIComponent(profile.id) + '?subject=' + encodeURIComponent(subject));
     const data = await res.json();
     priorTopics = data.topics || [];
-  } catch(e){ return; }
-  if (!priorTopics.length) return;
-  // Only start the recap if the child hasn't already begun typing/talking in the meantime.
+  } catch(e){ priorTopics = []; }
+
+  let weakTopicsLine = '';
+  try {
+    const res2 = await fetch('/api/progress/' + encodeURIComponent(profile.id));
+    const allProgress = await res2.json();
+    const subjectQuizzes = (allProgress || []).filter(p => p.subject === subject);
+    const weak = subjectQuizzes.filter(p => p.total > 0 && (p.score / p.total) < 0.6);
+    if (weak.length){
+      const weakList = weak.slice(0, 3).map(p => (p.topic && p.topic.trim() ? p.topic : subject) + ' (scored ' + p.score + '/' + p.total + ')').join(', ');
+      weakTopicsLine = ` The child has scored low on these recent quizzes and could use extra review: ${weakList}. Where it fits naturally, favor reviewing one of these over introducing something brand new.`;
+    }
+  } catch(e){}
+
+  // Only open the module if the child hasn't already begun typing/talking in the meantime.
   if (state.activeSubject !== subject || state.chat.length > 0) return;
 
-  const topicList = priorTopics.map(t => (t.topic && t.topic.trim()) ? t.topic : subject).join(', ');
-  const recapSystemPrompt = tutorSystemPrompt(profile, subject, state.topic) +
-    ` This is the start of a brand new session, and the child has come back after some time away. Before teaching anything new, warmly welcome them back in one short line, then ask exactly ONE simple recall question about something covered in a previous session, to help them remember it. Topics covered before: ${topicList}. Keep the whole thing to one or two short sentences total, then stop and wait for their answer - do not teach anything new yet.`;
+  const isForeignLanguage = FOREIGN_LANGUAGES.includes(subject);
+  let moduleInstruction;
+  if (priorTopics.length){
+    const topicList = priorTopics.map(t => (t.topic && t.topic.trim()) ? t.topic : subject).join(', ');
+    moduleInstruction = ` This is the start of a new session, and the child has come back after some time away. You are running a structured course in ${subject} for this grade, not just answering random questions - think like a real tuition teacher following a syllabus across many sessions. Topics already covered in previous sessions, in order: ${topicList}.${weakTopicsLine} In this reply: first, warmly welcome them back in one short line, then ask exactly ONE simple recall question about the most recent previous topic (or a weak topic noted above, if any) to help them remember it. Do not introduce anything new yet - just the welcome and one recall question, then stop and wait for their answer. Once they answer in later turns, you will move on to the next logical topic in the ${subject} curriculum for this grade after that.`;
+  } else {
+    moduleInstruction = ` This is the child's very first session in ${subject} at this grade level. You are running a structured course, not just answering random questions - think like a real tuition teacher following a sensible curriculum sequence appropriate for this grade (use your own knowledge of a typical NCERT/CBSE syllabus, or for a foreign language, typical beginner progression). In this reply: warmly welcome them to their first ${subject} lesson in one short line, then introduce the very first topic of the course with ONE small piece of it - not the whole topic at once. Keep it to one or two short sentences, then stop and wait for their response before continuing.`;
+  }
+  const tagInstruction = ' At the very end of your reply, on its own new line, add the exact tag [[TOPIC: <short topic name>]] naming the specific topic this message focuses on - for example [[TOPIC: Addition of two-digit numbers]] or [[TOPIC: Greetings]]. This tag is for internal tracking only and will never be shown or read aloud to the child, so it does not need to fit the spoken tone of the rest of your reply.';
+
+  const recapSystemPrompt = tutorSystemPrompt(profile, subject, state.topic) + moduleInstruction + tagInstruction;
 
   state.chatLoading = true;
   render();
   try {
-    const reply = await callClaude(recapSystemPrompt, "Start today's session with a quick welcome-back and one recap question.", null, []);
-    const cleaned = cleanReply(reply) || "Welcome back! Ready to pick up where we left off?";
+    const rawReply = await callClaude(recapSystemPrompt, "Start today's session.", null, []);
+    const tagMatch = rawReply.match(/\[\[TOPIC:\s*(.*?)\]\]/i);
+    const sessionTopic = tagMatch ? tagMatch[1].trim() : (state.topic || '');
+    const replyWithoutTag = rawReply.replace(/\[\[TOPIC:\s*.*?\]\]/i, '').trim();
+    const cleaned = cleanReply(replyWithoutTag) || "Welcome! Ready to get started?";
+
+    if (sessionTopic) logTopicEngagement(profile, subject, sessionTopic);
+
     if (shouldAutoSpeak(profile)){
       const msg = { role: "assistant", text: "" };
       state.chat.push(msg);
