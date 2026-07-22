@@ -12,7 +12,7 @@
 <link rel="apple-touch-icon" href="/icons/apple-touch-icon.png">
 <link rel="icon" type="image/png" sizes="192x192" href="/icons/icon-192.png">
 <link rel="preconnect" href="https://fonts.googleapis.com">
-<link href="https://fonts.googleapis.com/css2?family=Roboto+Slab:wght@600;700&family=Inter:wght@400;500;600;700&family=IBM+Plex+Mono:wght@500;600&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Roboto+Slab:wght@600;700&family=Inter:wght@400;500;600;700&family=IBM+Plex+Mono:wght@500;600&family=Kalam:wght@400;700&display=swap" rel="stylesheet">
 <style>
   :root {
     --bg: #F5F7FA;
@@ -387,13 +387,36 @@
   }
   .call-avatar { width: 168px; height: 168px; border-width: 4px; margin-top: 20px; }
   .call-status { font-size: 13px; color: var(--ink-soft); margin: 14px 0 4px; font-weight: 600; }
-  .call-caption {
-    max-width: 480px; min-height: 70px; margin: 10px 0 28px;
-    background: var(--bg-alt); border: 1px solid var(--line); border-radius: 14px;
-    padding: 14px 18px;
+
+  /* Chalkboard - used for the call caption and the main chat's "writing board" */
+  .board {
+    max-width: 480px; width: 100%; min-height: 90px; margin: 10px 0 28px;
+    background: #1F3D2E;
+    border: 10px solid #6B4A32;
+    border-radius: 6px;
+    box-shadow: inset 0 0 24px rgba(0,0,0,0.4), 0 4px 10px rgba(0,0,0,0.18);
+    padding: 16px 20px;
+    text-align: left;
   }
-  .call-caption-who { font-size: 11px; color: var(--ink-soft); text-transform: uppercase; letter-spacing: 0.06em; margin-bottom: 6px; font-weight: 700; }
-  .call-caption-text { font-size: 16px; line-height: 1.5; color: var(--ink); }
+  .board-who {
+    font-family: 'Inter', sans-serif;
+    font-size: 10.5px; color: #C9DCC9; text-transform: uppercase; letter-spacing: 0.08em;
+    margin-bottom: 6px; font-weight: 700; opacity: 0.75;
+  }
+  .board-text {
+    font-family: 'Kalam', cursive;
+    font-size: 20px; line-height: 1.5; color: #F3F3E8;
+    text-shadow: 0 0 1px rgba(255,255,255,0.25);
+  }
+  .board-cursor {
+    display: inline-block; width: 3px; height: 18px; background: #F3F3E8;
+    margin-left: 2px; vertical-align: middle;
+    animation: chalkBlink 0.8s steps(1) infinite;
+  }
+  @keyframes chalkBlink { 0%, 49% { opacity: 1; } 50%, 100% { opacity: 0; } }
+  .board-compact { max-width: 100%; min-height: 60px; margin: 0 auto 16px; padding: 12px 16px; }
+  .board-compact .board-text { font-size: 16px; }
+
   .call-mic-btn {
     width: 76px; height: 76px; border-radius: 50%;
     background: var(--navy); color: #fff; border: none; font-size: 30px;
@@ -917,6 +940,32 @@ function cleanReply(text){
 
 // Real textbook names from the Manthan School booklist, so the tutor can reference
 // the child's actual books by name instead of speaking generically.
+// Exact chapter sequences from real textbooks the family has shared photos of.
+// When available, the tutor follows this precise order instead of guessing a
+// generic curriculum sequence.
+const EXACT_CHAPTER_LISTS = {
+  "2|English": [
+    "Nouns: Common and Proper", "Nouns: Countable and Uncountable", "Nouns: Gender",
+    "Nouns: Singular and Plural", "this / that / these / those", "Adjectives",
+    "Personal Pronouns", "Object Pronouns", "am / is / are", "have / has got",
+    "Contractions", "Possessive Adjectives", "Verbs", "Present Continuous",
+    "Possessive Nouns", "Imperatives", "How much / How many / some / any",
+    "Adverbs", "must / mustn't", "Present Simple", "can / can't", "was / were",
+    "Comparatives", "Superlatives", "Past Simple", "Future Simple",
+    "Prepositions", "Conjunctions", "Punctuation", "Vocabulary",
+    "Reading Comprehension", "Composition"
+  ],
+  "2|Hindi": [
+    "सबसे प्यारे बच्चे", "हौसले की दौड़", "हमारे प्रिय त्योहार", "तितली",
+    "वीर बालक", "हमसे सब कहते", "चिड़ियाघर की सैर", "नटखट चूहा",
+    "एक सिक्के की कहानी", "जन्मदिवस पर पेड़ लगाओ", "कर भला तो हो भला",
+    "जब बादल बरसा", "मेरी प्यारी माँ", "बूँद-बूँद बचाओ", "गांधी जी की कलम से"
+  ]
+};
+function exactChapterList(subject, grade){
+  return EXACT_CHAPTER_LISTS[grade + '|' + subject] || null;
+}
+
 function textbookHint(subject, grade){
   if (isEarlyYears(grade)) return '';
   const g = parseInt(grade, 10);
@@ -980,10 +1029,14 @@ function tutorSystemPrompt(profile, subject, topic){
     ? ` You are teaching the child beginner-level ${subject} as a foreign language, appropriate for their age and grade - simple everyday words, greetings, numbers, colors, animals, and short phrases, building up gradually over time. Teach exactly ONE new word or phrase per reply. Immediately follow it with a simple English-style phonetic pronunciation in parentheses, for example bonjour said bon-zhoor, then explicitly ask the child to say it back to you, for example "Now you try saying bonjour" - and then stop and wait. Do not introduce a second word until they have responded to the first one.`
     : '';
   const bookLine = textbookHint(subject, profile.grade);
+  const exactChapters = exactChapterList(subject, profile.grade);
+  const exactChapterLine = exactChapters
+    ? ` IMPORTANT: this student's real textbook has these exact chapters in this exact order: ${exactChapters.map((c,i)=>(i+1)+'. '+c).join(', ')}. You MUST follow this exact sequence rather than inventing your own topic order - look at which of these chapters have already been covered in previous sessions (from the conversation history and topics noted above) and teach the next uncovered one. When you tag a topic with [[TOPIC: ...]], use the exact chapter name from this list, worded exactly as written here.`
+    : '';
   if (isEarlyYears(profile.grade)){
     return `You are a cheerful, extremely patient preschool teacher talking to a ${profile.grade} child (age 3-5) in India, and to the parent sitting with them, about "${subject}". Use VERY short sentences (5-8 words), simple everyday words, and lots of encouragement ("Well done!", "Great try!"). Include fun sounds, rhymes, or a tiny story where it helps. Suggest one simple hands-on activity the parent can do with the child (e.g. "count 5 spoons together"). Never use paragraphs — use short lines. Keep the whole reply under 60 words, since only one small thing should happen per turn. Address the parent briefly if useful, but keep the core message speakable to a small child.${styleLine}${turnTakingLine}${languageLine}${langLine}`;
   }
-  return `You are a warm, patient CBSE tutor helping a Class ${profile.grade} student in India understand "${subject}"${topic ? (', specifically the topic "'+topic+'"') : ''}. Match your explanation depth to the NCERT/CBSE syllabus for this grade. Use simple language and relatable Indian examples. When the student asks a problem to solve, guide them step by step with questions rather than just giving the final answer immediately, unless they explicitly ask for the answer. Keep each reply short (under 80 words), since only one step happens per turn.${styleLine}${turnTakingLine}${languageLine}${bookLine}${langLine}`;
+  return `You are a warm, patient CBSE tutor helping a Class ${profile.grade} student in India understand "${subject}"${topic ? (', specifically the topic "'+topic+'"') : ''}. Match your explanation depth to the NCERT/CBSE syllabus for this grade. Use simple language and relatable Indian examples. When the student asks a problem to solve, guide them step by step with questions rather than just giving the final answer immediately, unless they explicitly ask for the answer. Keep each reply short (under 80 words), since only one step happens per turn.${styleLine}${turnTakingLine}${languageLine}${bookLine}${exactChapterLine}${langLine}`;
 }
 
 // ---- Recap / spaced-review: remembers what was covered so returning to a subject
@@ -1337,10 +1390,12 @@ function renderCallMode(profile){
   const lastMsg = state.chat.length ? state.chat[state.chat.length - 1] : null;
   const captionText = lastMsg ? lastMsg.text : 'Tap the mic and say hello to get started!';
   const captionRole = lastMsg ? lastMsg.role : 'assistant';
-  wrap.appendChild(el('div', {class:'call-caption'}, [
-    el('div', {class:'call-caption-who'}, [captionRole === 'user' ? profile.name+' said' : 'Tutor']),
-    el('div', {class:'call-caption-text'}, [captionText || ' '])
-  ]));
+  const boardChildren = [
+    el('div', {class:'board-who'}, [captionRole === 'user' ? profile.name+' said' : 'Tutor']),
+    el('div', {class:'board-text'}, [captionText || ' '])
+  ];
+  if (state.talking) boardChildren[1].appendChild(el('span', {class:'board-cursor'}, []));
+  wrap.appendChild(el('div', {class:'board'}, boardChildren));
 
   if (state.micPreview){
     wrap.appendChild(el('div', {class:'mic-preview-chip'}, [
@@ -1432,6 +1487,16 @@ function renderChat(){
     state.neuralVoiceAvailable ? '✨ Natural voice enabled' : 'Using your device\'s built-in voice'
   ]));
   wrap.appendChild(teacherWrap);
+
+  if (state.chat.length > 0){
+    const lastMsg = state.chat[state.chat.length - 1];
+    const boardChildren = [
+      el('div', {class:'board-who'}, [lastMsg.role === 'user' ? profile.name+' said' : 'Tutor is writing']),
+      el('div', {class:'board-text'}, [lastMsg.text || ' '])
+    ];
+    if (state.talking && lastMsg.role === 'assistant') boardChildren[1].appendChild(el('span', {class:'board-cursor'}, []));
+    wrap.appendChild(el('div', {class:'board board-compact', style:'margin-left:auto;margin-right:auto;'}, boardChildren));
+  }
 
   const chatWindow = el('div', {class:'chat-window'});
   if (state.chat.length === 0){
