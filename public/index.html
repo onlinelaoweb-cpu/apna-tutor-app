@@ -536,17 +536,18 @@ const SUBJECT_COLORS = {
   "Hindi": "#B23A48", "Social Science": "#8A6D3B", "EVS": "#4C9F70",
   "Economics": "#8A6D3B", "Accountancy": "#3B6EA5", "Business Studies": "#E0793C",
   "History": "#8A6D3B", "Political Science": "#7C5CBF", "Geography": "#4C9F70",
-  "Sanskrit": "#B23A48", "ICT": "#2E9C9C",
+  "ICT": "#2E9C9C",
   "Alphabets": "#C2536B", "Numbers": "#E0793C", "Rhymes & Stories": "#7C5CBF",
   "Colors & Shapes": "#4C9F70", "My World": "#3B6EA5",
-  "Spanish": "#E4572E", "French": "#3E5C9A", "Chinese": "#C1272D", "German": "#8C6A3F"
+  "Spanish": "#E4572E", "French": "#3E5C9A", "Chinese": "#C1272D", "German": "#8C6A3F",
+  "Sanskrit": "#C98A2B"
 };
 function subjColor(s){ return SUBJECT_COLORS[s] || "#5B6B85"; }
 
 
 const EARLY_YEARS = ["Nursery","LKG","UKG"];
 function isEarlyYears(grade){ return EARLY_YEARS.includes(grade); }
-const FOREIGN_LANGUAGES = ["Spanish","French","Chinese","German"];
+const FOREIGN_LANGUAGES = ["Spanish","French","Chinese","German","Sanskrit"];
 
 function subjectsForGrade(grade, stream){
   let base;
@@ -554,7 +555,9 @@ function subjectsForGrade(grade, stream){
     base = ["Alphabets","Numbers","Rhymes & Stories","Colors & Shapes","My World"];
   } else {
     const g = parseInt(grade,10);
-    if (g <= 5) base = ["Mathematics","English","Hindi","EVS","ICT"];
+    // Manthan School structure: EVS only in Grades 1-2; splits into Science +
+    // Social Science from Grade 3 onward.
+    if (g <= 2) base = ["Mathematics","English","Hindi","EVS","ICT"];
     else if (g <= 8) base = ["Mathematics","Science","English","Hindi","Social Science","ICT"];
     else if (g <= 10) base = ["Mathematics","Science","English","Social Science","Hindi","ICT"];
     else if (stream === "Commerce") base = ["Accountancy","Business Studies","Economics","English","Mathematics"];
@@ -912,6 +915,60 @@ function cleanReply(text){
     .trim();
 }
 
+// Real textbook names from the Manthan School booklist, so the tutor can reference
+// the child's actual books by name instead of speaking generically.
+function textbookHint(subject, grade){
+  if (isEarlyYears(grade)) return '';
+  const g = parseInt(grade, 10);
+  let band;
+  if (g <= 2) band = 'g1_2';
+  else if (g <= 5) band = 'g3_5';
+  else if (g <= 8) band = 'g6_8';
+  else if (g === 9) band = 'g9';
+  else if (g === 10) band = 'g10';
+  else return '';
+
+  const map = {
+    g1_2: {
+      "English": ["21st Century English","Burlington English Grammar"],
+      "Hindi": ["Nai Udaan"],
+      "EVS": ["My Green World"],
+      "Mathematics": ["Ready to Mathematics"]
+    },
+    g3_5: {
+      "English": ["21st Century English","Burlington English Grammar","Footprints"],
+      "Hindi": ["Parivesh Hindi","Sarthak Hindi Vyakaran"],
+      "Mathematics": ["Ready to Mathematics"],
+      "Science": ["Science Now"]
+    },
+    g6_8: {
+      "English": ["21st Century English","Burlington English Grammar"],
+      "Hindi": ["Sarthak Hindi Vyakaran","Malhar (NCERT)"],
+      "Mathematics": ["Maths (NCERT)"],
+      "Science": ["Science Now"],
+      "Social Science": ["Exploring Society India and Beyond (NCERT)","Kausal Bodh (NCERT)"],
+      "French": ["Avenir"],
+      "German": ["Hallo Deutsch / Deutsch und Ich"],
+      "Sanskrit": ["Deepikam (NCERT)","Divyam Sanskrit Grammar"]
+    },
+    g9: {
+      "English": ["Beehive (NCERT)","Moments (NCERT)"],
+      "Mathematics": ["Mathematics (NCERT)"],
+      "Science": ["Science (NCERT)"],
+      "Social Science": ["Democratic Politics (NCERT)","Economics (NCERT)","History (NCERT)","Geography (NCERT)"]
+    },
+    g10: {
+      "English": ["First Flight (NCERT)","Footprints (NCERT)"],
+      "Mathematics": ["Mathematics (NCERT)"],
+      "Science": ["Science (NCERT)"],
+      "Social Science": ["Democratic Politics (NCERT)","Economics (NCERT)","History (NCERT)","Geography (NCERT)"]
+    }
+  };
+  const names = (map[band] && map[band][subject]) || null;
+  if (!names) return '';
+  return ` The child's actual textbook(s) for this subject are called ${names.join(' and ')} - you may refer to them by name to feel aligned with their real class, though you do not have their exact page-by-page contents, so keep explanations general rather than claiming specific page or chapter numbers.`;
+}
+
 function tutorSystemPrompt(profile, subject, topic){
   const langLine = state.ttsLang === 'hi'
     ? ' Respond entirely in warm, simple Hindi using Devanagari script (not Roman/Hinglish transliteration). Keep proper nouns, numbers, and technical terms without a common Hindi equivalent in English, but write everything else in Hindi.'
@@ -922,10 +979,11 @@ function tutorSystemPrompt(profile, subject, topic){
   const languageLine = isForeignLanguage
     ? ` You are teaching the child beginner-level ${subject} as a foreign language, appropriate for their age and grade - simple everyday words, greetings, numbers, colors, animals, and short phrases, building up gradually over time. Teach exactly ONE new word or phrase per reply. Immediately follow it with a simple English-style phonetic pronunciation in parentheses, for example bonjour said bon-zhoor, then explicitly ask the child to say it back to you, for example "Now you try saying bonjour" - and then stop and wait. Do not introduce a second word until they have responded to the first one.`
     : '';
+  const bookLine = textbookHint(subject, profile.grade);
   if (isEarlyYears(profile.grade)){
     return `You are a cheerful, extremely patient preschool teacher talking to a ${profile.grade} child (age 3-5) in India, and to the parent sitting with them, about "${subject}". Use VERY short sentences (5-8 words), simple everyday words, and lots of encouragement ("Well done!", "Great try!"). Include fun sounds, rhymes, or a tiny story where it helps. Suggest one simple hands-on activity the parent can do with the child (e.g. "count 5 spoons together"). Never use paragraphs — use short lines. Keep the whole reply under 60 words, since only one small thing should happen per turn. Address the parent briefly if useful, but keep the core message speakable to a small child.${styleLine}${turnTakingLine}${languageLine}${langLine}`;
   }
-  return `You are a warm, patient CBSE tutor helping a Class ${profile.grade} student in India understand "${subject}"${topic ? (', specifically the topic "'+topic+'"') : ''}. Match your explanation depth to the NCERT/CBSE syllabus for this grade. Use simple language and relatable Indian examples. When the student asks a problem to solve, guide them step by step with questions rather than just giving the final answer immediately, unless they explicitly ask for the answer. Keep each reply short (under 80 words), since only one step happens per turn.${styleLine}${turnTakingLine}${languageLine}${langLine}`;
+  return `You are a warm, patient CBSE tutor helping a Class ${profile.grade} student in India understand "${subject}"${topic ? (', specifically the topic "'+topic+'"') : ''}. Match your explanation depth to the NCERT/CBSE syllabus for this grade. Use simple language and relatable Indian examples. When the student asks a problem to solve, guide them step by step with questions rather than just giving the final answer immediately, unless they explicitly ask for the answer. Keep each reply short (under 80 words), since only one step happens per turn.${styleLine}${turnTakingLine}${languageLine}${bookLine}${langLine}`;
 }
 
 // ---- Recap / spaced-review: remembers what was covered so returning to a subject
