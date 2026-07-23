@@ -81,6 +81,11 @@ app.post('/api/topics/:profileId', (req, res) => {
   res.json({ ok: true });
 });
 
+// ---- Streaks and badges (derived from topic log + quiz history, no separate tracking) ----
+app.get('/api/streak/:profileId', (req, res) => {
+  res.json(db.getEngagementStats(req.params.profileId));
+});
+
 // ---- Anthropic proxy (keeps the API key server-side only) ----
 app.post('/api/messages', async (req, res) => {
   if (!process.env.ANTHROPIC_API_KEY) {

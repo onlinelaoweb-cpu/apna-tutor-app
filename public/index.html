@@ -124,6 +124,7 @@
   .profile-meta { line-height: 1.25; }
   .profile-name { font-size: 13.5px; font-weight: 600; }
   .profile-grade { font-size: 11.5px; color: #A9B7CE; }
+  .profile-streak { font-size: 11px; color: #E8A33D; font-weight: 700; margin-top: 2px; }
 
   .btn-ghost {
     background: transparent;
@@ -470,6 +471,26 @@
 
   /* Progress */
   .progress-list { max-width: 640px; margin: 0 auto; display: flex; flex-direction: column; gap: 8px; }
+  .streak-summary {
+    display: flex; justify-content: center; gap: 32px;
+    max-width: 640px; margin: 0 auto 20px; padding: 16px;
+    background: var(--bg-alt); border: 1px solid var(--line); border-radius: 14px;
+  }
+  .streak-summary-item { text-align: center; }
+  .streak-summary-num { font-family: 'IBM Plex Mono', monospace; font-size: 26px; font-weight: 700; color: var(--navy); }
+  .streak-summary-label { font-size: 11.5px; color: var(--ink-soft); margin-top: 2px; }
+  .badge-grid {
+    display: grid; grid-template-columns: repeat(auto-fill, minmax(84px, 1fr));
+    gap: 10px; max-width: 640px; margin: 0 auto 24px;
+  }
+  .badge {
+    text-align: center; padding: 12px 6px; border-radius: 12px;
+    background: var(--bg-alt); border: 1px solid var(--line);
+    opacity: 0.35; filter: grayscale(1);
+  }
+  .badge.earned { opacity: 1; filter: none; background: #FFF8EC; border-color: var(--gold); }
+  .badge-icon { font-size: 26px; }
+  .badge-label { font-size: 10px; color: var(--ink-soft); margin-top: 4px; line-height: 1.3; }
   .progress-row {
     display: flex; align-items: center; gap: 12px;
     padding: 10px 14px; background: var(--bg-alt); border: 1px solid var(--line); border-radius: 10px;
@@ -544,6 +565,11 @@
     .progress-list { max-width: 100%; }
     .progress-row { padding: 9px 12px; flex-wrap: wrap; }
 
+    .streak-summary { max-width: 100%; gap: 18px; padding: 12px; }
+    .streak-summary-num { font-size: 21px; }
+    .badge-grid { max-width: 100%; grid-template-columns: repeat(auto-fill, minmax(72px, 1fr)); gap: 8px; }
+    .badge-icon { font-size: 22px; }
+
     .lang-toggle { flex-wrap: wrap; }
   }
 </style>
@@ -603,6 +629,7 @@ let state = {
   quizLoading: false,
   quizSubmitted: false,
   progress: {},       // profileId -> [{subject, topic, score, total, date}]
+  streaks: {},        // profileId -> {currentStreak, longestStreak, activeDays, badges}
   listening: false,
   pendingImage: null,  // {mediaType, data, previewUrl}
   talking: false,
@@ -882,7 +909,7 @@ async function loadProfiles(){
   } catch(e){ state.profiles = []; }
   const savedActive = localStorage_getActiveId();
   state.activeId = savedActive && state.profiles.some(p=>p.id===savedActive) ? savedActive : (state.profiles[0]?.id || null);
-  if (state.activeId) await loadProgress(state.activeId);
+  if (state.activeId) { await loadProgress(state.activeId); await loadStreak(state.activeId); }
   render();
 }
 function localStorage_getActiveId(){
@@ -900,6 +927,12 @@ async function loadProgress(profileId){
     const res = await fetch('/api/progress/'+encodeURIComponent(profileId));
     state.progress[profileId] = await res.json();
   } catch(e){ state.progress[profileId] = []; }
+}
+async function loadStreak(profileId){
+  try {
+    const res = await fetch('/api/streak/'+encodeURIComponent(profileId));
+    state.streaks[profileId] = await res.json();
+  } catch(e){ state.streaks[profileId] = null; }
 }
 async function saveProgressEntry(profileId, entry){
   try {
@@ -1068,6 +1101,8 @@ async function logTopicEngagement(profile, subject, topic){
       method: 'POST', headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ subject, topic: topic || '' })
     });
+    await loadStreak(profile.id);
+    render();
   } catch(e){}
 }
 
@@ -1268,6 +1303,7 @@ async function submitQuiz(){
   if (!state.progress[profile.id]) state.progress[profile.id] = [];
   state.progress[profile.id].unshift(entry);
   await saveProgressEntry(profile.id, entry);
+  await loadStreak(profile.id);
   render();
 }
 
@@ -1300,12 +1336,15 @@ function renderSidebar(){
   state.profiles.forEach(p=>{
     const chip = el('div', {
       class: 'profile-chip' + (p.id===state.activeId ? ' active':''),
-      onclick: async ()=>{ stopSpeaking(); stopListening(); state.callMode=false; state.activeId = p.id; state.activeSubject=null; state.topic=""; state.chat=[]; state.quiz=null; state.pendingImage=null; state.sidebarOpen=false; await saveActiveId(); await loadProgress(p.id); render(); }
+      onclick: async ()=>{ stopSpeaking(); stopListening(); state.callMode=false; state.activeId = p.id; state.activeSubject=null; state.topic=""; state.chat=[]; state.quiz=null; state.pendingImage=null; state.sidebarOpen=false; await saveActiveId(); await loadProgress(p.id); await loadStreak(p.id); render(); }
     }, [
       el('div', {class:'avatar', style:`background:${colorForProfile(p.id)}`}, [initials(p.name)]),
       el('div', {class:'profile-meta'}, [
         el('div', {class:'profile-name'}, [p.name]),
-        el('div', {class:'profile-grade'}, [`${isEarlyYears(p.grade) ? p.grade : 'Class '+p.grade}${p.stream ? ' · '+p.stream : ''}`])
+        el('div', {class:'profile-grade'}, [`${isEarlyYears(p.grade) ? p.grade : 'Class '+p.grade}${p.stream ? ' · '+p.stream : ''}`]),
+        (state.streaks[p.id] && state.streaks[p.id].currentStreak > 0)
+          ? el('div', {class:'profile-streak'}, ['🔥 '+state.streaks[p.id].currentStreak+' day'+(state.streaks[p.id].currentStreak===1?'':'s')+' streak'])
+          : null
       ]),
       el('div', {
         class:'profile-remove', title:'Remove '+p.name,
@@ -1315,7 +1354,7 @@ function renderSidebar(){
           await fetch('/api/profiles/'+encodeURIComponent(p.id), { method:'DELETE' });
           state.profiles = state.profiles.filter(x=>x.id!==p.id);
           delete state.progress[p.id];
-          if (state.activeId===p.id){ stopSpeaking(); stopListening(); state.callMode=false; state.activeId = state.profiles[0]?.id || null; state.activeSubject=null; state.chat=[]; state.quiz=null; state.pendingImage=null; saveActiveId(); if(state.activeId) await loadProgress(state.activeId); }
+          if (state.activeId===p.id){ stopSpeaking(); stopListening(); state.callMode=false; state.activeId = state.profiles[0]?.id || null; state.activeSubject=null; state.chat=[]; state.quiz=null; state.pendingImage=null; saveActiveId(); if(state.activeId) { await loadProgress(state.activeId); await loadStreak(state.activeId); } }
           render();
         }
       }, ['×'])
@@ -1676,11 +1715,41 @@ function renderQuiz(){
 function renderProgress(){
   const profile = activeProfile();
   if (!profile) return el('div', {class:'empty-state'}, [el('h2',{},['Welcome!']), el('p',{},['Add your first child on the left to get started.'])]);
+  const outer = el('div', {});
+  const stats = state.streaks[profile.id];
+
+  if (stats){
+    const summary = el('div', {class:'streak-summary'});
+    summary.appendChild(el('div', {class:'streak-summary-item'}, [
+      el('div', {class:'streak-summary-num'}, [String(stats.currentStreak)]),
+      el('div', {class:'streak-summary-label'}, ['Day streak 🔥'])
+    ]));
+    summary.appendChild(el('div', {class:'streak-summary-item'}, [
+      el('div', {class:'streak-summary-num'}, [String(stats.longestStreak)]),
+      el('div', {class:'streak-summary-label'}, ['Best streak'])
+    ]));
+    summary.appendChild(el('div', {class:'streak-summary-item'}, [
+      el('div', {class:'streak-summary-num'}, [String(stats.activeDays)]),
+      el('div', {class:'streak-summary-label'}, ['Days active'])
+    ]));
+    outer.appendChild(summary);
+
+    const badgeGrid = el('div', {class:'badge-grid'});
+    stats.badges.forEach(b=>{
+      badgeGrid.appendChild(el('div', {class:'badge'+(b.earned?' earned':''), title:b.label}, [
+        el('div', {class:'badge-icon'}, [b.icon]),
+        el('div', {class:'badge-label'}, [b.label])
+      ]));
+    });
+    outer.appendChild(badgeGrid);
+  }
+
   const list = state.progress[profile.id] || [];
   const wrap = el('div', {class:'progress-list'});
   if (list.length===0){
     wrap.appendChild(el('div', {class:'empty-state'}, [el('h2',{},['No quizzes yet']), el('p',{},[profile.name+"'s practice quiz scores will show up here."])]));
-    return wrap;
+    outer.appendChild(wrap);
+    return outer;
   }
   list.forEach(entry=>{
     const pct = entry.score/entry.total;
@@ -1694,7 +1763,8 @@ function renderProgress(){
       el('div', {class:'p-score '+scoreClass}, [entry.score+'/'+entry.total])
     ]));
   });
-  return wrap;
+  outer.appendChild(wrap);
+  return outer;
 }
 
 function render(){
