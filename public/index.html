@@ -699,6 +699,7 @@ function speak(text, callbacks){
 function stopSpeaking(){
   if ('speechSynthesis' in window) window.speechSynthesis.cancel();
   if (state.currentAudio){ state.currentAudio.pause(); state.currentAudio = null; }
+  clearInterval(boardWriteTimer);
   state.talking = false; updateAvatarClass();
 }
 function updateAvatarClass(){
@@ -739,12 +740,25 @@ async function speakReply(text, callbacks){
       state.currentAudio = audio;
       audio.onplay = ()=>{
         state.talking = true; updateAvatarClass();
-        // No per-word timing from the cloud voice, so reveal the caption as soon as
-        // the natural audio starts (the voice itself is what carries the "human" feel now).
-        if (callbacks.onWord) callbacks.onWord(text.length);
+        // The cloud voice doesn't give per-word timing, so pace the "writing on the
+        // board" reveal across the audio's actual duration once we know it, instead
+        // of dumping the whole caption on screen the instant playback starts.
+        const words = text.split(' ');
+        const startReveal = (totalMs) => {
+          const perWord = Math.max(60, totalMs / words.length);
+          let idx = 0;
+          clearInterval(boardWriteTimer);
+          boardWriteTimer = setInterval(()=>{
+            idx++;
+            if (callbacks.onWord) callbacks.onWord(words.slice(0, idx).join(' ').length);
+            if (idx >= words.length) clearInterval(boardWriteTimer);
+          }, perWord);
+        };
+        if (audio.duration && isFinite(audio.duration)) startReveal(audio.duration * 1000);
+        else audio.addEventListener('loadedmetadata', ()=>{ startReveal((audio.duration||words.length*0.35)*1000); }, {once:true});
       };
-      audio.onended = ()=>{ state.talking = false; updateAvatarClass(); state.currentAudio = null; if (callbacks.onDone) callbacks.onDone(); };
-      audio.onerror = ()=>{ state.talking = false; updateAvatarClass(); state.currentAudio = null; if (callbacks.onDone) callbacks.onDone(); };
+      audio.onended = ()=>{ clearInterval(boardWriteTimer); if(callbacks.onWord) callbacks.onWord(text.length); state.talking = false; updateAvatarClass(); state.currentAudio = null; if (callbacks.onDone) callbacks.onDone(); };
+      audio.onerror = ()=>{ clearInterval(boardWriteTimer); state.talking = false; updateAvatarClass(); state.currentAudio = null; if (callbacks.onDone) callbacks.onDone(); };
       await audio.play();
       return;
     } catch(e){
@@ -758,6 +772,7 @@ let activeRecognition = null;
 let micPreviewTimer = null;
 let micWatchdogTimer = null;
 let micNoticeTimer = null;
+let boardWriteTimer = null;
 
 function startListening(onResult){
   const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
@@ -1505,7 +1520,9 @@ function renderChat(){
       el('p',{},['Type, speak with the mic, or attach a photo of a question '+profile.name+' is stuck on.'])
     ]));
   }
-  state.chat.forEach(m=>{
+  // The most recent message is shown on the chalkboard above, not repeated here.
+  const historyToShow = state.chat.slice(0, -1);
+  historyToShow.forEach(m=>{
     const row = el('div', {class:'msg '+m.role});
     row.appendChild(el('div', {class:'msg-avatar', style:`background:${m.role==='user'?colorForProfile(profile.id):subjectHex}`}, [m.role==='user'?initials(profile.name):'T']));
     const bubbleChildren = [m.text];
