@@ -91,7 +91,7 @@ app.post('/api/messages', async (req, res) => {
   if (!process.env.ANTHROPIC_API_KEY) {
     return res.status(500).json({ error: 'Server is missing ANTHROPIC_API_KEY. Set it in your environment variables.' });
   }
-  const { system, message, image, history } = req.body || {};
+  const { system, message, image, history, webSearch } = req.body || {};
   if (!message && !image) return res.status(400).json({ error: 'message or image is required' });
 
   let content;
@@ -113,6 +113,17 @@ app.post('/api/messages', async (req, res) => {
   const messages = [...priorTurns, { role: 'user', content }];
 
   try {
+    const requestBody = {
+      model: 'claude-sonnet-4-6',
+      max_tokens: 1000,
+      system: system || undefined,
+      messages,
+    };
+    // Current Affairs needs real, live news - not the model's frozen training data -
+    // so this turns on Anthropic's hosted web search tool only when asked for.
+    if (webSearch) {
+      requestBody.tools = [{ type: 'web_search_20250305', name: 'web_search', max_uses: 3 }];
+    }
     const upstream = await fetch('https://api.anthropic.com/v1/messages', {
       method: 'POST',
       headers: {
@@ -120,12 +131,7 @@ app.post('/api/messages', async (req, res) => {
         'x-api-key': process.env.ANTHROPIC_API_KEY,
         'anthropic-version': '2023-06-01',
       },
-      body: JSON.stringify({
-        model: 'claude-sonnet-4-6',
-        max_tokens: 1000,
-        system: system || undefined,
-        messages,
-      }),
+      body: JSON.stringify(requestBody),
     });
     const data = await upstream.json();
     if (!upstream.ok) {

@@ -589,7 +589,7 @@ const SUBJECT_COLORS = {
   "Alphabets": "#C2536B", "Numbers": "#E0793C", "Rhymes & Stories": "#7C5CBF",
   "Colors & Shapes": "#4C9F70", "My World": "#3B6EA5",
   "Spanish": "#E4572E", "French": "#3E5C9A", "Chinese": "#C1272D", "German": "#8C6A3F",
-  "Sanskrit": "#C98A2B"
+  "Sanskrit": "#C98A2B", "Current Affairs": "#1F7A8C"
 };
 function subjColor(s){ return SUBJECT_COLORS[s] || "#5B6B85"; }
 
@@ -597,6 +597,9 @@ function subjColor(s){ return SUBJECT_COLORS[s] || "#5B6B85"; }
 const EARLY_YEARS = ["Nursery","LKG","UKG"];
 function isEarlyYears(grade){ return EARLY_YEARS.includes(grade); }
 const FOREIGN_LANGUAGES = ["Spanish","French","Chinese","German","Sanskrit"];
+// Grade below which real news isn't appropriate - younger children get simple,
+// evergreen "did you know" facts instead of an actual live news feed.
+const CURRENT_AFFAIRS_LIVE_NEWS_MIN_GRADE = 3;
 
 function subjectsForGrade(grade, stream){
   let base;
@@ -613,7 +616,7 @@ function subjectsForGrade(grade, stream){
     else if (stream === "Humanities") base = ["History","Political Science","Geography","Economics","English"];
     else base = ["Physics","Chemistry","Mathematics","Biology","English"]; // Science default
   }
-  return base.concat(FOREIGN_LANGUAGES);
+  return base.concat(FOREIGN_LANGUAGES).concat(["Current Affairs"]);
 }
 
 let state = {
@@ -951,11 +954,11 @@ function colorForProfile(id){
   return colors[h];
 }
 
-async function callClaude(systemPrompt, userText, image, history){
+async function callClaude(systemPrompt, userText, image, history, webSearch){
   const res = await fetch("/api/messages", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ system: systemPrompt, message: userText, image: image || undefined, history: history || [] })
+    body: JSON.stringify({ system: systemPrompt, message: userText, image: image || undefined, history: history || [], webSearch: !!webSearch })
   });
   if (!res.ok){
     const err = await res.json().catch(()=>({}));
@@ -1066,25 +1069,55 @@ function textbookHint(subject, grade){
   return ` The child's actual textbook(s) for this subject are called ${names.join(' and ')} - you may refer to them by name to feel aligned with their real class, though you do not have their exact page-by-page contents, so keep explanations general rather than claiming specific page or chapter numbers.`;
 }
 
+// Current Affairs needs different safety framing at every age, and unlike other
+// subjects it isn't a fixed chapter sequence - fresh content each session instead.
+function currentAffairsLine(profile){
+  if (isEarlyYears(profile.grade)) {
+    return ' For Current Affairs at this age, do NOT discuss real news, politics, disasters, or violence of any kind - instead share simple, fun, positive "did you know" facts about the world (animals, weather, space, colors, festivals) suitable for a toddler. Keep it light and wonder-filled, not informational in a news sense.';
+  }
+  const g = parseInt(profile.grade, 10);
+  if (isNaN(g) || g < CURRENT_AFFAIRS_LIVE_NEWS_MIN_GRADE) {
+    return ' For Current Affairs at this age, avoid real hard news, politics, disasters, or violence - instead share simple, positive, age-appropriate facts and recent happy news (festivals, sports wins, new animal discoveries, space missions, inventions) in very simple language.';
+  }
+  if (g <= 5) {
+    return ' For Current Affairs, share real, genuinely recent news you have found through search, but keep it strictly positive and safe: festivals, sports achievements, science and space news, environment and wildlife, inventions, and cultural events. Avoid politics, crime, war, disasters, or any violent or frightening content entirely, even if asked - gently redirect to a safer topic instead. Keep language simple and encouraging.';
+  }
+  if (g <= 8) {
+    return ' For Current Affairs, share real, recent news you have found through search, appropriate for a middle-school student - national and world events, science, environment, sports, and culture are all fine, including basic civics and government topics explained neutrally. Avoid graphic or disturbing details of violence, death, or disasters - you can mention that a serious event happened factually without describing gruesome specifics. If a topic touches on politics or contested issues, present it neutrally and factually without pushing any political opinion or side.';
+  }
+  return ' For Current Affairs, share real, recent news you have found through search, at a level appropriate for a senior CBSE student building general awareness for school and competitive exams - national and world affairs, economy, science, environment, sports, and culture are all fair game, including political and social topics. Present any political, contested, or sensitive topic neutrally and factually, giving a fair account rather than pushing an opinion or side. You may mention serious events (conflicts, disasters, crime) factually and soberly, but avoid graphic, gory, or gratuitously disturbing detail - keep the framing educational, not sensational.';
+}
+function shouldUseWebSearch(profile, subject){
+  if (subject !== 'Current Affairs') return false;
+  if (isEarlyYears(profile.grade)) return false;
+  const g = parseInt(profile.grade, 10);
+  return !isNaN(g) && g >= CURRENT_AFFAIRS_LIVE_NEWS_MIN_GRADE;
+}
+
 function tutorSystemPrompt(profile, subject, topic){
   const langLine = state.ttsLang === 'hi'
     ? ' Respond entirely in warm, simple Hindi using Devanagari script (not Roman/Hinglish transliteration). Keep proper nouns, numbers, and technical terms without a common Hindi equivalent in English, but write everything else in Hindi.'
     : '';
   const styleLine = ' Write the way a real teacher would speak out loud in the room, in natural flowing sentences. Do not use any markdown formatting: no asterisks, no hash symbols, no bullet points or numbered lists, no dashes as list markers, no emojis, no backticks. If you want to list a few things, weave them into a sentence with words like "first," "next," and "also" instead of a list. Every word you write may be read aloud by text-to-speech, so it must sound natural when spoken, not like a written document.';
-  const turnTakingLine = ' This is a live, real-time one-on-one lesson, not a lecture - behave exactly like a tuition teacher sitting across from the child. In every single reply, say or teach only ONE small thing: one fact, one short explanation, one question, or one word or phrase to repeat back. Then stop completely and wait - do not ask a second question or introduce a second idea in the same reply. Look at the conversation history before you respond: if your last turn asked the child to answer a question or repeat a word, your very next reply must first react to what they actually said (praise them warmly if correct, or gently correct them and repeat the right version once if not) before you move on to anything new. Never bundle "here is the explanation, now here are three questions" into one reply - one step per turn, always. The child\'s messages may come from imperfect voice recognition, especially for very short sounds or single letters, so if their message seems completely unrelated to what you just asked or does not make sense in context, do not treat it as a real answer or change topic - instead, warmly say you did not quite catch that and ask them to try saying or typing it again. You are running a structured, ongoing course in this subject across many sessions, not just answering one-off questions - once the child has shown they understand the current small topic (a few correct responses in a row), move on to the next logical topic in a sensible curriculum sequence for this grade rather than lingering or stopping, so the course keeps making real progress over time.';
+  const isCurrentAffairs = subject === 'Current Affairs';
+  const currentAffairsOverride = isCurrentAffairs
+    ? ' Note: unlike other subjects, Current Affairs does not have a fixed chapter sequence - each session should introduce fresh, different news or facts than previous sessions covered, rather than progressing through a syllabus. Still keep to one small piece of news per turn, and it is fine to briefly ask if they remember something from a previous session before sharing something new.'
+    : '';
+  const turnTakingLine = ' This is a live, real-time one-on-one lesson, not a lecture - behave exactly like a tuition teacher sitting across from the child. In every single reply, say or teach only ONE small thing: one fact, one short explanation, one question, or one word or phrase to repeat back. Then stop completely and wait - do not ask a second question or introduce a second idea in the same reply. Look at the conversation history before you respond: if your last turn asked the child to answer a question or repeat a word, your very next reply must first react to what they actually said (praise them warmly if correct, or gently correct them and repeat the right version once if not) before you move on to anything new. Never bundle "here is the explanation, now here are three questions" into one reply - one step per turn, always. The child\'s messages may come from imperfect voice recognition, especially for very short sounds or single letters, so if their message seems completely unrelated to what you just asked or does not make sense in context, do not treat it as a real answer or change topic - instead, warmly say you did not quite catch that and ask them to try saying or typing it again. You are running a structured, ongoing course in this subject across many sessions, not just answering one-off questions - once the child has shown they understand the current small topic (a few correct responses in a row), move on to the next logical topic in a sensible curriculum sequence for this grade rather than lingering or stopping, so the course keeps making real progress over time.' + currentAffairsOverride;
   const isForeignLanguage = FOREIGN_LANGUAGES.includes(subject);
   const languageLine = isForeignLanguage
     ? ` You are teaching the child beginner-level ${subject} as a foreign language, appropriate for their age and grade - simple everyday words, greetings, numbers, colors, animals, and short phrases, building up gradually over time. Teach exactly ONE new word or phrase per reply. Immediately follow it with a simple English-style phonetic pronunciation in parentheses, for example bonjour said bon-zhoor, then explicitly ask the child to say it back to you, for example "Now you try saying bonjour" - and then stop and wait. Do not introduce a second word until they have responded to the first one.`
     : '';
-  const bookLine = textbookHint(subject, profile.grade);
-  const exactChapters = exactChapterList(subject, profile.grade);
+  const newsLine = isCurrentAffairs ? currentAffairsLine(profile) : '';
+  const bookLine = isCurrentAffairs ? '' : textbookHint(subject, profile.grade);
+  const exactChapters = isCurrentAffairs ? null : exactChapterList(subject, profile.grade);
   const exactChapterLine = exactChapters
     ? ` IMPORTANT: this student's real textbook has these exact chapters in this exact order: ${exactChapters.map((c,i)=>(i+1)+'. '+c).join(', ')}. You MUST follow this exact sequence rather than inventing your own topic order - look at which of these chapters have already been covered in previous sessions (from the conversation history and topics noted above) and teach the next uncovered one. When you tag a topic with [[TOPIC: ...]], use the exact chapter name from this list, worded exactly as written here.`
     : '';
   if (isEarlyYears(profile.grade)){
-    return `You are a cheerful, extremely patient preschool teacher talking to a ${profile.grade} child (age 3-5) in India, and to the parent sitting with them, about "${subject}". Use VERY short sentences (5-8 words), simple everyday words, and lots of encouragement ("Well done!", "Great try!"). Include fun sounds, rhymes, or a tiny story where it helps. Suggest one simple hands-on activity the parent can do with the child (e.g. "count 5 spoons together"). Never use paragraphs — use short lines. Keep the whole reply under 60 words, since only one small thing should happen per turn. Address the parent briefly if useful, but keep the core message speakable to a small child.${styleLine}${turnTakingLine}${languageLine}${langLine}`;
+    return `You are a cheerful, extremely patient preschool teacher talking to a ${profile.grade} child (age 3-5) in India, and to the parent sitting with them, about "${subject}". Use VERY short sentences (5-8 words), simple everyday words, and lots of encouragement ("Well done!", "Great try!"). Include fun sounds, rhymes, or a tiny story where it helps. Suggest one simple hands-on activity the parent can do with the child (e.g. "count 5 spoons together"). Never use paragraphs — use short lines. Keep the whole reply under 60 words, since only one small thing should happen per turn. Address the parent briefly if useful, but keep the core message speakable to a small child.${styleLine}${turnTakingLine}${languageLine}${newsLine}${langLine}`;
   }
-  return `You are a warm, patient CBSE tutor helping a Class ${profile.grade} student in India understand "${subject}"${topic ? (', specifically the topic "'+topic+'"') : ''}. Match your explanation depth to the NCERT/CBSE syllabus for this grade. Use simple language and relatable Indian examples. When the student asks a problem to solve, guide them step by step with questions rather than just giving the final answer immediately, unless they explicitly ask for the answer. Keep each reply short (under 80 words), since only one step happens per turn.${styleLine}${turnTakingLine}${languageLine}${bookLine}${exactChapterLine}${langLine}`;
+  return `You are a warm, patient CBSE tutor helping a Class ${profile.grade} student in India understand "${subject}"${topic ? (', specifically the topic "'+topic+'"') : ''}. Match your explanation depth to the NCERT/CBSE syllabus for this grade. Use simple language and relatable Indian examples. When the student asks a problem to solve, guide them step by step with questions rather than just giving the final answer immediately, unless they explicitly ask for the answer. Keep each reply short (under 80 words), since only one step happens per turn.${styleLine}${turnTakingLine}${languageLine}${bookLine}${exactChapterLine}${newsLine}${langLine}`;
 }
 
 // ---- Recap / spaced-review: remembers what was covered so returning to a subject
@@ -1147,7 +1180,7 @@ async function maybeStartWithRecap(profile, subject){
   state.chatLoading = true;
   render();
   try {
-    const rawReply = await callClaude(recapSystemPrompt, "Start today's session.", null, []);
+    const rawReply = await callClaude(recapSystemPrompt, "Start today's session.", null, [], shouldUseWebSearch(profile, subject));
     const tagMatch = rawReply.match(/\[\[TOPIC:\s*(.*?)\]\]/i);
     const sessionTopic = tagMatch ? tagMatch[1].trim() : (state.topic || '');
     const replyWithoutTag = rawReply.replace(/\[\[TOPIC:\s*.*?\]\]/i, '').trim();
@@ -1211,7 +1244,8 @@ async function sendChat(text){
       tutorSystemPrompt(profile, state.activeSubject, state.topic),
       text || "Please look at this photo and help me understand it.",
       img ? { mediaType: img.mediaType, data: img.data } : null,
-      historyForApi
+      historyForApi,
+      shouldUseWebSearch(profile, state.activeSubject)
     );
     const cleaned = cleanReply(reply) || "Sorry, I couldn't think of a reply. Try asking again!";
 
@@ -1264,8 +1298,12 @@ async function generateQuiz(){
   render();
   const early = isEarlyYears(profile.grade);
   const isForeignLanguage = FOREIGN_LANGUAGES.includes(state.activeSubject);
+  const isCurrentAffairs = state.activeSubject === 'Current Affairs';
   let sys, user;
-  if (isForeignLanguage){
+  if (isCurrentAffairs){
+    sys = `You generate current affairs / general knowledge quizzes for a student in India. Respond with ONLY valid JSON, no markdown fences, no preamble, matching exactly this schema: {"questions":[{"question":"string","options":["a","b","c","d"],"correct":0,"explanation":"short string"}]}. ${currentAffairsLine(profile)} Create exactly ${early ? 4 : 5} questions${early ? ' with only 3 options each' : ''} based on real, current information.`;
+    user = `${early ? profile.grade+' child' : 'Class '+profile.grade+' student'}. Create an age-appropriate current affairs / general knowledge quiz using real, recent information.`;
+  } else if (isForeignLanguage){
     sys = `You generate beginner-level foreign language vocabulary quizzes for a child in India learning a new language for fun. Respond with ONLY valid JSON, no markdown fences, no preamble, matching exactly this schema: {"questions":[{"question":"string","options":["a","b","c","d"],"correct":0,"explanation":"short string"}]}. Test simple everyday words, greetings, numbers, colors, or animals appropriate for the child's age. Include the English meaning in the question and the foreign word plus a simple phonetic pronunciation in the options, for example bonjour said bon-zhoor. Explanations should reinforce the correct pronunciation briefly. Create exactly ${early ? 4 : 5} questions${early ? ' with only 3 options each' : ''}.`;
     user = `${early ? profile.grade+' child' : 'Class '+profile.grade+' student'}, learning ${state.activeSubject}${state.topic ? ' - focus: '+state.topic : ''} for the first time. Create a fun, encouraging beginner vocabulary quiz at the right difficulty for this age.`;
   } else {
@@ -1277,7 +1315,7 @@ async function generateQuiz(){
       : `Class ${profile.grade} student, subject: ${state.activeSubject}${state.topic ? ', topic: '+state.topic : ''}. Create 5 CBSE-syllabus-appropriate multiple choice questions at the right difficulty for this grade.`;
   }
   try {
-    let raw = await callClaude(sys, user);
+    let raw = await callClaude(sys, user, null, [], shouldUseWebSearch(profile, state.activeSubject));
     raw = raw.replace(/```json|```/g,"").trim();
     const parsed = JSON.parse(raw);
     state.quiz = parsed;
