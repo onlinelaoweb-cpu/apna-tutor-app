@@ -146,9 +146,10 @@ app.post('/api/messages', async (req, res) => {
 
 // ---- Neural text-to-speech (Google Cloud TTS) - optional. If not configured, the
 // frontend automatically falls back to the browser's built-in voice, so the app keeps
-// working either way. Voice names use Wavenet for broad, reliable language support.
+// working either way. Both voices confirmed FEMALE per Google's own voice listings -
+// en-IN-Wavenet-A and hi-IN-Wavenet-A (their "A" voice is female in nearly every locale).
 const TTS_VOICES = {
-  en: { languageCode: 'en-IN', name: 'en-IN-Wavenet-D' },
+  en: { languageCode: 'en-IN', name: 'en-IN-Wavenet-A' },
   hi: { languageCode: 'hi-IN', name: 'hi-IN-Wavenet-A' },
 };
 

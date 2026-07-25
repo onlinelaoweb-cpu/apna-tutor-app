@@ -671,13 +671,18 @@ function pickVoice(lang){
   let candidates = voices.filter(v => v.lang.toLowerCase().startsWith(prefix));
   if (!candidates.length) candidates = voices.filter(v => v.lang.toLowerCase().startsWith('en'));
   if (!candidates.length) return voices[0];
-  // Prefer voices that tend to sound more natural (not a guarantee - depends on the device/OS).
+  // Common male voice names across platforms - avoided so the tutor always sounds
+  // like the same woman in the photo, regardless of device.
+  const MALE_NAME_HINTS = /\b(male|david|daniel|mark|alex|fred|ravi|prabhat|rishi|george|james|thomas|arthur|oliver|aaron|rocko)\b/i;
+  const FEMALE_NAME_HINTS = /\b(female|zira|samantha|susan|karen|victoria|heera|lekha|veena|moira|tessa|kavya|shreya|salli)\b/i;
   const scored = candidates.map(v => {
     let score = 0;
     if (/natural|neural|premium|enhanced|wavenet/i.test(v.name)) score += 5;
     if (/google/i.test(v.name)) score += 3;
     if (lang === 'en' && /india|hindi/i.test(v.name + ' ' + v.lang)) score += 1;
     if (v.localService === false) score += 1;
+    if (FEMALE_NAME_HINTS.test(v.name)) score += 8;
+    if (MALE_NAME_HINTS.test(v.name)) score -= 8;
     return { v, score };
   });
   scored.sort((a, b) => b.score - a.score);
