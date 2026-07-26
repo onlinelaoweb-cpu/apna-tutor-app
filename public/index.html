@@ -417,6 +417,19 @@
   @keyframes chalkBlink { 0%, 49% { opacity: 1; } 50%, 100% { opacity: 0; } }
   .board-compact { max-width: 100%; min-height: 60px; margin: 0 auto 16px; padding: 12px 16px; }
   .board-compact .board-text { font-size: 16px; }
+  .board-doodles { display: flex; gap: 12px; margin-bottom: 10px; flex-wrap: wrap; }
+  .board-doodle {
+    width: 44px; height: 44px; color: #F3F3E8;
+    animation: doodlePop 0.35s ease-out;
+    filter: drop-shadow(0 0 1px rgba(255,255,255,0.3));
+  }
+  .board-doodle svg { width: 100%; height: 100%; }
+  .board-compact .board-doodle { width: 30px; height: 30px; }
+  @keyframes doodlePop {
+    0% { opacity: 0; transform: scale(0.4) rotate(-6deg); }
+    70% { opacity: 1; transform: scale(1.08) rotate(2deg); }
+    100% { opacity: 1; transform: scale(1) rotate(0); }
+  }
 
   .call-mic-btn {
     width: 76px; height: 76px; border-radius: 50%;
@@ -953,6 +966,63 @@ async function saveProgressEntry(profileId, entry){
 function activeProfile(){ return state.profiles.find(p=>p.id===state.activeId) || null; }
 function initials(name){ return name.trim().split(/\s+/).map(w=>w[0]).slice(0,2).join('').toUpperCase(); }
 
+// Simple chalk-style line-art doodles that pop up on the board when the tutor's
+// words mention a matching thing - like a teacher sketching as they talk.
+const CHALK_DOODLES = [
+  { words: ['circle'], svg: '<circle cx="30" cy="30" r="22"/>' },
+  { words: ['square'], svg: '<rect x="9" y="9" width="42" height="42" rx="2"/>' },
+  { words: ['rectangle'], svg: '<rect x="4" y="16" width="52" height="28" rx="2"/>' },
+  { words: ['triangle'], svg: '<polygon points="30,7 55,52 5,52"/>' },
+  { words: ['star'], svg: '<polygon points="30,4 36,22 55,22 39,33 45,52 30,40 15,52 21,33 5,22 24,22"/>' },
+  { words: ['heart'], svg: '<path d="M30,50 C10,35 4,20 14,11 C22,4 30,12 30,18 C30,12 38,4 46,11 C56,20 50,35 30,50 Z"/>' },
+  { words: ['sun', 'sunny', 'sunshine'], svg: '<circle cx="30" cy="30" r="12"/><line x1="30" y1="2" x2="30" y2="10"/><line x1="30" y1="50" x2="30" y2="58"/><line x1="2" y1="30" x2="10" y2="30"/><line x1="50" y1="30" x2="58" y2="30"/><line x1="10" y1="10" x2="16" y2="16"/><line x1="44" y1="44" x2="50" y2="50"/><line x1="50" y1="10" x2="44" y2="16"/><line x1="16" y1="44" x2="10" y2="50"/>' },
+  { words: ['cloud', 'cloudy'], svg: '<path d="M16,42 a10,10 0 0,1 -2,-19.8 a13,13 0 0,1 25,-4 a11,11 0 0,1 12,10.8 a9,9 0 0,1 -3,13 Z"/>' },
+  { words: ['moon'], svg: '<path d="M38,8 A24,24 0 1,0 38,52 A18,18 0 1,1 38,8 Z"/>' },
+  { words: ['rain', 'raining', 'rainy'], svg: '<path d="M16,30 a10,10 0 0,1 -2,-19.8 a13,13 0 0,1 25,-4 a11,11 0 0,1 12,10.8 a9,9 0 0,1 -3,13 Z"/><line x1="14" y1="46" x2="10" y2="56"/><line x1="26" y1="46" x2="22" y2="56"/><line x1="38" y1="46" x2="34" y2="56"/>' },
+  { words: ['tree'], svg: '<line x1="30" y1="34" x2="30" y2="56"/><circle cx="30" cy="20" r="18"/>' },
+  { words: ['flower'], svg: '<circle cx="30" cy="20" r="7"/><circle cx="18" cy="28" r="7"/><circle cx="42" cy="28" r="7"/><circle cx="24" cy="40" r="7"/><circle cx="36" cy="40" r="7"/><circle cx="30" cy="30" r="5"/><line x1="30" y1="47" x2="30" y2="58"/>' },
+  { words: ['apple'], svg: '<path d="M30,16 C18,10 8,20 10,34 C12,46 22,54 30,50 C38,54 48,46 50,34 C52,20 42,10 30,16 Z"/><line x1="30" y1="16" x2="32" y2="6"/><path d="M32,8 Q40,4 42,10"/>' },
+  { words: ['banana'], svg: '<path d="M12,44 C10,28 20,12 36,8 C34,14 32,18 34,20 C40,24 46,32 44,42 C40,52 24,54 12,44 Z"/>' },
+  { words: ['house', 'home'], svg: '<polyline points="8,30 30,10 52,30"/><rect x="14" y="28" width="32" height="24"/><rect x="26" y="36" width="8" height="16"/>' },
+  { words: ['fish'], svg: '<ellipse cx="26" cy="30" rx="18" ry="11"/><polygon points="44,30 56,20 56,40"/><circle cx="16" cy="27" r="1.6" fill="currentColor" stroke="none"/>' },
+  { words: ['cat', 'kitten'], svg: '<circle cx="30" cy="32" r="16"/><polygon points="16,20 22,4 26,22"/><polygon points="44,20 38,4 34,22"/><line x1="14" y1="34" x2="2" y2="32"/><line x1="14" y1="38" x2="2" y2="40"/><line x1="46" y1="34" x2="58" y2="32"/><line x1="46" y1="38" x2="58" y2="40"/>' },
+  { words: ['dog', 'puppy'], svg: '<circle cx="30" cy="34" r="15"/><ellipse cx="12" cy="24" rx="6" ry="10" transform="rotate(-20 12 24)"/><ellipse cx="48" cy="24" rx="6" ry="10" transform="rotate(20 48 24)"/><circle cx="30" cy="38" r="2" fill="currentColor" stroke="none"/>' },
+  { words: ['bird'], svg: '<ellipse cx="26" cy="32" rx="16" ry="10"/><polygon points="42,30 56,26 44,38"/><circle cx="16" cy="27" r="1.6" fill="currentColor" stroke="none"/><polyline points="14,22 8,10"/>' },
+  { words: ['book', 'books'], svg: '<path d="M30,12 C24,8 14,8 8,12 V50 C14,46 24,46 30,50 C36,46 46,46 52,50 V12 C46,8 36,8 30,12 Z"/><line x1="30" y1="12" x2="30" y2="50"/>' },
+  { words: ['ball'], svg: '<circle cx="30" cy="30" r="22"/><path d="M10,20 Q30,30 50,20 M10,40 Q30,30 50,40 M30,8 V52"/>' },
+  { words: ['balloon'], svg: '<circle cx="30" cy="22" r="16"/><line x1="30" y1="38" x2="30" y2="56"/><polygon points="27,38 33,38 30,42"/>' },
+  { words: ['umbrella'], svg: '<path d="M6,28 A24,24 0 0,1 54,28 Z"/><line x1="30" y1="28" x2="30" y2="52"/><path d="M30,52 q0,6 -6,6"/>' },
+  { words: ['plus', 'addition', 'add'], svg: '<line x1="30" y1="10" x2="30" y2="50"/><line x1="10" y1="30" x2="50" y2="30"/>' },
+  { words: ['minus', 'subtraction', 'subtract'], svg: '<line x1="10" y1="30" x2="50" y2="30"/>' },
+  { words: ['multiply', 'multiplication', 'times'], svg: '<line x1="14" y1="14" x2="46" y2="46"/><line x1="46" y1="14" x2="14" y2="46"/>' },
+  { words: ['divide', 'division'], svg: '<circle cx="30" cy="16" r="3" fill="currentColor" stroke="none"/><line x1="10" y1="30" x2="50" y2="30"/><circle cx="30" cy="44" r="3" fill="currentColor" stroke="none"/>' },
+  { words: ['rainbow'], svg: '<path d="M4,52 A26,26 0 0,1 56,52"/><path d="M14,52 A16,16 0 0,1 46,52"/>' },
+  { words: ['butterfly'], svg: '<ellipse cx="16" cy="18" rx="12" ry="9" transform="rotate(-20 16 18)"/><ellipse cx="16" cy="40" rx="12" ry="9" transform="rotate(20 16 40)"/><ellipse cx="44" cy="18" rx="12" ry="9" transform="rotate(20 44 18)"/><ellipse cx="44" cy="40" rx="12" ry="9" transform="rotate(-20 44 40)"/><line x1="30" y1="10" x2="30" y2="50"/>' },
+];
+function findBoardDoodles(text){
+  if (!text) return [];
+  const lower = ' ' + text.toLowerCase().replace(/[^a-z\s]/g, ' ') + ' ';
+  const matches = [];
+  for (const d of CHALK_DOODLES){
+    if (d.words.some(w => lower.includes(' '+w+' '))){
+      matches.push(d.svg);
+      if (matches.length >= 2) break;
+    }
+  }
+  return matches;
+}
+function boardDoodleElements(text){
+  const matches = findBoardDoodles(text);
+  if (!matches.length) return null;
+  const wrap = el('div', {class:'board-doodles'});
+  matches.forEach(svgInner=>{
+    const holder = el('div', {class:'board-doodle'});
+    holder.innerHTML = `<svg viewBox="0 0 60 60" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round">${svgInner}</svg>`;
+    wrap.appendChild(holder);
+  });
+  return wrap;
+}
+
 function colorForProfile(id){
   const colors = ["#E8A33D","#4C9F70","#7C5CBF","#C2536B","#3B6EA5"];
   let h=0; for(const c of id) h = (h*31 + c.charCodeAt(0)) % colors.length;
@@ -1487,11 +1557,13 @@ function renderCallMode(profile){
   const lastMsg = state.chat.length ? state.chat[state.chat.length - 1] : null;
   const captionText = lastMsg ? lastMsg.text : 'Tap the mic and say hello to get started!';
   const captionRole = lastMsg ? lastMsg.role : 'assistant';
-  const boardChildren = [
-    el('div', {class:'board-who'}, [captionRole === 'user' ? profile.name+' said' : 'Tutor']),
-    el('div', {class:'board-text'}, [captionText || ' '])
-  ];
-  if (state.talking) boardChildren[1].appendChild(el('span', {class:'board-cursor'}, []));
+  const boardChildren = [];
+  const callDoodles = boardDoodleElements(captionText);
+  if (callDoodles) boardChildren.push(callDoodles);
+  boardChildren.push(el('div', {class:'board-who'}, [captionRole === 'user' ? profile.name+' said' : 'Tutor']));
+  const callTextEl = el('div', {class:'board-text'}, [captionText || ' ']);
+  boardChildren.push(callTextEl);
+  if (state.talking) callTextEl.appendChild(el('span', {class:'board-cursor'}, []));
   wrap.appendChild(el('div', {class:'board'}, boardChildren));
 
   if (state.micPreview){
@@ -1587,11 +1659,13 @@ function renderChat(){
 
   if (state.chat.length > 0){
     const lastMsg = state.chat[state.chat.length - 1];
-    const boardChildren = [
-      el('div', {class:'board-who'}, [lastMsg.role === 'user' ? profile.name+' said' : 'Tutor is writing']),
-      el('div', {class:'board-text'}, [lastMsg.text || ' '])
-    ];
-    if (state.talking && lastMsg.role === 'assistant') boardChildren[1].appendChild(el('span', {class:'board-cursor'}, []));
+    const boardChildren = [];
+    const doodles = boardDoodleElements(lastMsg.text);
+    if (doodles) boardChildren.push(doodles);
+    boardChildren.push(el('div', {class:'board-who'}, [lastMsg.role === 'user' ? profile.name+' said' : 'Tutor is writing']));
+    const boardTextEl = el('div', {class:'board-text'}, [lastMsg.text || ' ']);
+    boardChildren.push(boardTextEl);
+    if (state.talking && lastMsg.role === 'assistant') boardTextEl.appendChild(el('span', {class:'board-cursor'}, []));
     wrap.appendChild(el('div', {class:'board board-compact', style:'margin-left:auto;margin-right:auto;'}, boardChildren));
   }
 
