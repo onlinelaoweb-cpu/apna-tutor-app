@@ -464,6 +464,52 @@
   .option.wrong { border-color: var(--maroon); background: #FBEAEC; }
   .explain { font-size: 12.5px; color: var(--ink-soft); margin-top: 8px; padding-top: 8px; border-top: 1px dashed var(--line); }
 
+  /* Play & Learn (early years) */
+  .play-shell { max-width: 720px; margin: 0 auto; }
+  .play-hint { text-align: center; color: var(--ink-soft); font-size: 13.5px; margin-bottom: 16px; }
+  .play-grid {
+    display: grid; grid-template-columns: repeat(auto-fill, minmax(110px, 1fr));
+    gap: 12px;
+  }
+  .play-card {
+    background: var(--bg-alt); border: 2px solid var(--line); border-radius: var(--radius);
+    padding: 16px 8px; text-align: center; cursor: pointer; user-select: none;
+    transition: transform 0.12s ease, border-color 0.12s ease;
+  }
+  .play-card:active { transform: scale(0.94); border-color: var(--gold); background: #FFF8EA; }
+  .play-card .emoji { font-size: 34px; display: block; margin-bottom: 6px; }
+  .play-card .word { font-size: 13px; font-weight: 700; color: var(--ink); }
+  .play-card .sub { font-size: 11px; color: var(--ink-soft); margin-top: 2px; }
+  .play-swatch { width: 46px; height: 46px; border-radius: 50%; margin: 0 auto 6px; border: 2px solid rgba(0,0,0,0.08); }
+  .play-shape { width: 46px; height: 46px; margin: 0 auto 6px; }
+  .rhyme-card { background: var(--bg-alt); border: 1px solid var(--line); border-radius: var(--radius); padding: 14px 16px; margin-bottom: 10px; }
+  .rhyme-title { font-weight: 700; font-size: 14.5px; margin-bottom: 4px; }
+  .rhyme-play-btn {
+    background: var(--gold); color: #2B1B05; border: none; border-radius: 8px;
+    padding: 7px 14px; font-weight: 700; font-size: 12.5px; cursor: pointer; margin-top: 6px;
+  }
+
+  /* Worksheet */
+  .worksheet-shell { max-width: 680px; margin: 0 auto; }
+  .worksheet-controls { text-align: center; margin-bottom: 18px; }
+  .worksheet-paper {
+    background: #fff; border: 1px solid var(--line); border-radius: var(--radius);
+    padding: 26px 28px; color: #111;
+  }
+  .worksheet-paper h2 { margin: 0 0 4px; font-size: 19px; }
+  .worksheet-paper .meta { font-size: 12px; color: var(--ink-soft); margin-bottom: 16px; }
+  .worksheet-q { margin-bottom: 14px; font-size: 14.5px; line-height: 1.6; }
+  .worksheet-q .wq-num { font-weight: 700; margin-right: 6px; }
+  .worksheet-blank { display: inline-block; border-bottom: 1px solid #333; min-width: 160px; height: 1em; margin-left: 6px; }
+  .worksheet-answers { margin-top: 24px; padding-top: 14px; border-top: 1px dashed var(--line); font-size: 13px; color: var(--ink-soft); }
+  .worksheet-answers h3 { font-size: 13px; margin: 0 0 6px; color: var(--ink); }
+  .worksheet-actions { display: flex; gap: 10px; justify-content: center; margin-top: 16px; }
+  @media print {
+    body * { visibility: hidden; }
+    .worksheet-paper, .worksheet-paper * { visibility: visible; }
+    .worksheet-paper { position: absolute; left: 0; top: 0; width: 100%; border: none; padding: 0; }
+  }
+
   /* Stamp */
   .stamp-wrap { display: flex; justify-content: center; margin: 26px 0; }
   .stamp {
@@ -592,6 +638,48 @@
 <div class="app" id="app"></div>
 
 <script>
+// Lightweight UI-chrome translation (tab labels, headings, a few panel titles) -
+// the tutor's own replies already switch language via ttsLang; this extends the
+// same toggle to the app's own navigation text.
+const UI_STRINGS = {
+  welcome: { en: "Welcome to Apna Tutor", hi: "अपना ट्यूटर में आपका स्वागत है" },
+  learningSpace: { en: "'s learning space", hi: " की सीखने की जगह" },
+  tabPlay: { en: "Learn & Play", hi: "सीखो और खेलो" },
+  tabTutor: { en: "Ask Tutor", hi: "ट्यूटर से पूछें" },
+  tabQuiz: { en: "Practice Quiz", hi: "अभ्यास प्रश्नोत्तरी" },
+  tabWorksheet: { en: "Worksheet", hi: "वर्कशीट" },
+  tabSpelling: { en: "Spelling", hi: "वर्तनी" },
+  tabFun: { en: "Fun Zone", hi: "मस्ती की दुनिया" },
+  tabProgress: { en: "Progress", hi: "प्रगति" },
+  familySummary: { en: "Family Summary", hi: "परिवार सारांश" },
+  pickSubject: { en: "Pick a subject", hi: "एक विषय चुनें" }
+};
+function t(key){
+  const entry = UI_STRINGS[key];
+  if (!entry) return key;
+  return entry[state.ttsLang] || entry.en;
+}
+
+// Curated, kid-safe jokes/riddles/facts for a low-pressure "just for fun" tab -
+// no API call needed, so it works instantly and offline.
+const FUN_ZONE_DATA = [
+  {type:'joke', text:"Why did the book join the police? Because it wanted to go undercover!"},
+  {type:'riddle', text:"What has hands but can't clap? A clock! What time is it teaching us right now?"},
+  {type:'fact', text:"Did you know? Honey never spoils - archaeologists have found pots of honey in ancient Egyptian tombs that are still good to eat!"},
+  {type:'joke', text:"Why did the math book look sad? Because it had too many problems!"},
+  {type:'riddle', text:"I have cities but no houses, forests but no trees, and water but no fish. What am I? A map!"},
+  {type:'fact', text:"Did you know? A group of flamingos is called a 'flamboyance'!"},
+  {type:'joke', text:"What do you call a bear with no teeth? A gummy bear!"},
+  {type:'riddle', text:"The more you take, the more you leave behind. What am I? Footsteps!"},
+  {type:'fact', text:"Did you know? Octopuses have three hearts and blue blood!"},
+  {type:'joke', text:"Why did the crayon go to school? Because it wanted to be sharper!"},
+  {type:'riddle', text:"What has a face and two hands but no arms or legs? A clock!"},
+  {type:'fact', text:"Did you know? The Eiffel Tower can grow taller in summer - the metal expands in the heat!"},
+  {type:'joke', text:"Why don't scientists trust atoms? Because they make up everything!"},
+  {type:'riddle', text:"What can you catch but not throw? A cold!"},
+  {type:'fact', text:"Did you know? A blue whale's heart is as big as a small car!"}
+];
+
 const SUBJECT_COLORS = {
   "Mathematics": "#E0793C", "Science": "#3B6EA5", "Physics": "#3B6EA5",
   "Chemistry": "#4C9F70", "Biology": "#7C5CBF", "English": "#C2536B",
@@ -632,6 +720,57 @@ function subjectsForGrade(grade, stream){
   return base.concat(FOREIGN_LANGUAGES).concat(["Current Affairs"]);
 }
 
+// Tap-and-hear content for pre-readers (Nursery/LKG/UKG) - picture/emoji based
+// since these children can't use a text chat interface yet.
+const PLAY_LEARN_DATA = {
+  "Alphabets": [
+    {word:"A for Apple", emoji:"🍎"}, {word:"B for Ball", emoji:"⚽"}, {word:"C for Cat", emoji:"🐱"},
+    {word:"D for Dog", emoji:"🐶"}, {word:"E for Elephant", emoji:"🐘"}, {word:"F for Fish", emoji:"🐟"},
+    {word:"G for Grapes", emoji:"🍇"}, {word:"H for Hat", emoji:"🎩"}, {word:"I for Ice cream", emoji:"🍦"},
+    {word:"J for Jug", emoji:"🫙"}, {word:"K for Kite", emoji:"🪁"}, {word:"L for Lion", emoji:"🦁"},
+    {word:"M for Moon", emoji:"🌙"}, {word:"N for Nest", emoji:"🪺"}, {word:"O for Orange", emoji:"🍊"},
+    {word:"P for Parrot", emoji:"🦜"}, {word:"Q for Queen", emoji:"👸"}, {word:"R for Rabbit", emoji:"🐰"},
+    {word:"S for Sun", emoji:"☀️"}, {word:"T for Tiger", emoji:"🐯"}, {word:"U for Umbrella", emoji:"☂️"},
+    {word:"V for Van", emoji:"🚐"}, {word:"W for Watch", emoji:"⌚"}, {word:"X for Xylophone", emoji:"🎼"},
+    {word:"Y for Yak", emoji:"🐃"}, {word:"Z for Zebra", emoji:"🦓"}
+  ],
+  "Numbers": Array.from({length:20}, (_,i)=>{
+    const n = i+1;
+    return {word: String(n), emoji: "🔵".repeat(Math.min(n,10)) + (n>10? " +"+(n-10) : "")};
+  }),
+  "Colors & Shapes": {
+    colors: [
+      {word:"Red", hex:"#D64545"}, {word:"Blue", hex:"#3B6EA5"}, {word:"Yellow", hex:"#E8C13D"},
+      {word:"Green", hex:"#4C9F70"}, {word:"Orange", hex:"#E0793C"}, {word:"Purple", hex:"#7C5CBF"},
+      {word:"Pink", hex:"#E288A9"}, {word:"Black", hex:"#222222"}, {word:"White", hex:"#EEEEEE"},
+      {word:"Brown", hex:"#8C6A3F"}
+    ],
+    shapes: [
+      {word:"Circle", css:"border-radius:50%; background:#3B6EA5;"},
+      {word:"Square", css:"background:#E0793C;"},
+      {word:"Triangle", css:"width:0;height:0;border-left:23px solid transparent;border-right:23px solid transparent;border-bottom:40px solid #4C9F70;"},
+      {word:"Rectangle", css:"background:#7C5CBF; width:56px; height:34px;"},
+      {word:"Star", css:"background:#E8A33D; clip-path: polygon(50% 0%, 61% 35%, 98% 35%, 68% 57%, 79% 91%, 50% 70%, 21% 91%, 32% 57%, 2% 35%, 39% 35%);"},
+      {word:"Heart", css:"background:#D64545; clip-path: path('M23 41C10 33 0 24 0 13 0 5 6 0 13 0c5 0 8 3 10 6 2-3 5-6 10-6 7 0 13 5 13 13 0 11-10 20-23 28z');"}
+    ]
+  },
+  "My World": {
+    "Animals": [{word:"Dog",emoji:"🐶"},{word:"Cat",emoji:"🐱"},{word:"Cow",emoji:"🐄"},{word:"Horse",emoji:"🐴"},{word:"Elephant",emoji:"🐘"},{word:"Lion",emoji:"🦁"},{word:"Monkey",emoji:"🐒"},{word:"Bird",emoji:"🐦"}],
+    "Fruits": [{word:"Apple",emoji:"🍎"},{word:"Banana",emoji:"🍌"},{word:"Mango",emoji:"🥭"},{word:"Grapes",emoji:"🍇"},{word:"Orange",emoji:"🍊"},{word:"Watermelon",emoji:"🍉"}],
+    "Vehicles": [{word:"Car",emoji:"🚗"},{word:"Bus",emoji:"🚌"},{word:"Bicycle",emoji:"🚲"},{word:"Train",emoji:"🚆"},{word:"Airplane",emoji:"✈️"},{word:"Boat",emoji:"⛵"}],
+    "Family": [{word:"Mother",emoji:"👩"},{word:"Father",emoji:"👨"},{word:"Brother",emoji:"👦"},{word:"Sister",emoji:"👧"},{word:"Grandmother",emoji:"👵"},{word:"Grandfather",emoji:"👴"}]
+  },
+  // Traditional, centuries-old public-domain nursery rhymes - safe to include in full.
+  "Rhymes & Stories": [
+    {title:"Twinkle Twinkle Little Star", text:"Twinkle, twinkle, little star, how I wonder what you are. Up above the world so high, like a diamond in the sky. Twinkle, twinkle, little star, how I wonder what you are."},
+    {title:"Baa Baa Black Sheep", text:"Baa, baa, black sheep, have you any wool? Yes sir, yes sir, three bags full. One for the master, one for the dame, and one for the little boy who lives down the lane."},
+    {title:"Jack and Jill", text:"Jack and Jill went up the hill to fetch a pail of water. Jack fell down and broke his crown, and Jill came tumbling after."},
+    {title:"Humpty Dumpty", text:"Humpty Dumpty sat on a wall, Humpty Dumpty had a great fall. All the king's horses and all the king's men couldn't put Humpty together again."},
+    {title:"Hickory Dickory Dock", text:"Hickory dickory dock, the mouse ran up the clock. The clock struck one, the mouse ran down, hickory dickory dock."},
+    {title:"Row Row Row Your Boat", text:"Row, row, row your boat, gently down the stream. Merrily, merrily, merrily, merrily, life is but a dream."}
+  ]
+};
+
 let state = {
   profiles: [],
   activeId: null,
@@ -658,7 +797,25 @@ let state = {
   conversationMode: null, // null = default (on for language subjects); true/false = explicit user choice
   callMode: false,
   micPreview: null, // {text, onConfirm} - shown before a mic recognition result is actually sent
-  micNotice: null // {message, retry} - shown when listening fails, errors, or times out
+  micNotice: null, // {message, retry} - shown when listening fails, errors, or times out
+  worksheet: null,      // {title, questions:[{number,text}], answers:[{number,answer}]}
+  worksheetLoading: false,
+  worksheetType: 'practice', // 'practice' or 'reading'
+  funIndex: null,
+  spellingWords: null,   // [{word}] generated list for current session
+  spellingLoading: false,
+  spellingIndex: 0,
+  spellingInput: '',
+  spellingResult: null,  // 'correct' | 'wrong' | null
+  spellingScore: 0,
+  reminderEnabled: (localStorage.getItem('apnaTutorReminder') === '1'),
+  reminderTime: (localStorage.getItem('apnaTutorReminderTime') || '17:00'),
+  playMode: 'cards',   // 'cards' | 'trace' (Alphabets) | 'count' (Numbers)
+  traceIndex: 0,
+  countTarget: null,
+  countCurrent: null,
+  countCelebrated: false,
+  familySummary: null
 };
 
 function shouldAutoSpeak(profile){
@@ -1520,6 +1677,167 @@ async function submitQuiz(){
   render();
 }
 
+async function generateWorksheet(){
+  const profile = activeProfile();
+  if (!profile || !state.activeSubject) return;
+  state.worksheetLoading = true;
+  state.worksheet = null;
+  render();
+  let sys, user;
+  if (state.worksheetType === 'reading'){
+    sys = `You create printable reading comprehension worksheets for Indian school children (CBSE). Respond with ONLY valid JSON, no markdown fences, no preamble, matching exactly this schema: {"title":"string","passage":"a short age-appropriate reading passage, 80-150 words","questions":[{"number":1,"text":"string"}],"answers":[{"number":1,"answer":"short string"}]}. Create exactly 6 comprehension questions about the passage.`;
+    user = `Class ${profile.grade} student, subject: English${state.topic ? ', topic: '+state.topic : ''}. Write an original short passage at the right reading level for this grade, with comprehension questions.`;
+  } else {
+    sys = `You create printable CBSE-aligned worksheets for Indian school children to practice on paper with a parent. Respond with ONLY valid JSON, no markdown fences, no preamble, matching exactly this schema: {"title":"string","questions":[{"number":1,"text":"string, may include a blank shown as ___ where the child writes an answer"}],"answers":[{"number":1,"answer":"short string"}]}. Create exactly 10 questions, mixing question types such as fill-in-the-blank, short answer, and match-style items described in text. Keep language at the right reading level for the grade.`;
+    user = `Class ${profile.grade} student, subject: ${state.activeSubject}${state.topic ? ', topic: '+state.topic : ''}. Create a printable practice worksheet at the right difficulty for this grade.`;
+  }
+  try {
+    let raw = await callClaude(sys, user, null, [], false);
+    raw = raw.replace(/```json|```/g,"").trim();
+    state.worksheet = JSON.parse(raw);
+  } catch(e){
+    state.worksheet = {error: true};
+  }
+  state.worksheetLoading = false;
+  render();
+}
+
+function renderWorksheet(){
+  const profile = activeProfile();
+  const wrap = el('div', {class:'worksheet-shell'});
+  if (!profile || !state.activeSubject){
+    wrap.appendChild(el('div', {class:'worksheet-controls'}, ['Pick a subject from the menu (☰) first.']));
+    return wrap;
+  }
+  if (!state.worksheet && !state.worksheetLoading){
+    const typeToggle = el('div', {class:'lang-toggle', style:'margin-bottom:14px;'}, [
+      el('button', {class:'lang-btn'+(state.worksheetType==='practice'?' active':''), onclick:()=>{ state.worksheetType='practice'; render(); }}, ['Practice Worksheet']),
+      el('button', {class:'lang-btn'+(state.worksheetType==='reading'?' active':''), onclick:()=>{ state.worksheetType='reading'; render(); }}, ['Reading Comprehension'])
+    ]);
+    wrap.appendChild(el('div', {class:'worksheet-controls'}, [
+      typeToggle,
+      el('button', {class:'quiz-start-btn', onclick: generateWorksheet}, [
+        state.worksheetType==='reading' ? `Generate Reading Passage` : `Generate ${state.activeSubject} Worksheet`
+      ])
+    ]));
+    return wrap;
+  }
+  if (state.worksheetLoading){
+    wrap.appendChild(el('div', {class:'worksheet-controls'}, ['Creating worksheet...']));
+    return wrap;
+  }
+  if (state.worksheet.error){
+    wrap.appendChild(el('div', {class:'worksheet-controls'}, [
+      'Something went wrong generating the worksheet.',
+      el('div', {style:'margin-top:10px;'}, [
+        el('button', {class:'quiz-start-btn', onclick: generateWorksheet}, ['Try Again'])
+      ])
+    ]));
+    return wrap;
+  }
+  const ws = state.worksheet;
+  const paper = el('div', {class:'worksheet-paper', id:'worksheet-print-area'}, [
+    el('h2', {}, [ws.title || (state.activeSubject + ' Worksheet')]),
+    el('div', {class:'meta'}, [`${profile.name} · Class ${profile.grade} · ${state.activeSubject}${state.topic ? ' · '+state.topic : ''}`]),
+    ws.passage ? el('div', {class:'worksheet-q', style:'font-style:italic; margin-bottom:18px;'}, [ws.passage]) : null,
+    ...(ws.questions||[]).map(q => el('div', {class:'worksheet-q'}, [
+      el('span', {class:'wq-num'}, [q.number+'.']), q.text
+    ])),
+    el('div', {class:'worksheet-answers'}, [
+      el('h3', {}, ['Answers (for parent)']),
+      ...(ws.answers||[]).map(a => el('div', {}, [`${a.number}. ${a.answer}`]))
+    ])
+  ]);
+  wrap.appendChild(paper);
+  wrap.appendChild(el('div', {class:'worksheet-actions'}, [
+    el('button', {class:'quiz-start-btn', onclick: ()=>window.print()}, ['🖨 Print / Save as PDF']),
+    el('button', {class:'btn-ghost', onclick: ()=>{ state.worksheet=null; render(); }}, ['New Worksheet'])
+  ]));
+  return wrap;
+}
+
+async function generateSpellingWords(){
+  const profile = activeProfile();
+  if (!profile) return;
+  state.spellingLoading = true;
+  state.spellingWords = null;
+  state.spellingIndex = 0;
+  state.spellingInput = '';
+  state.spellingResult = null;
+  state.spellingScore = 0;
+  render();
+  const sys = `You create simple spelling word lists for Indian school children learning English. Respond with ONLY valid JSON, no markdown fences, no preamble, matching exactly this schema: {"words":["word1","word2",...]}. Create exactly 10 words at the right difficulty for the grade given - common, useful words a child that age would encounter in their English textbook.`;
+  const user = `Class ${profile.grade} student${state.topic ? ', currently studying: '+state.topic : ''}. Create a 10-word spelling practice list at the right difficulty for this grade.`;
+  try {
+    let raw = await callClaude(sys, user, null, [], false);
+    raw = raw.replace(/```json|```/g,"").trim();
+    const parsed = JSON.parse(raw);
+    state.spellingWords = parsed.words || [];
+  } catch(e){
+    state.spellingWords = [];
+  }
+  state.spellingLoading = false;
+  render();
+}
+
+function renderSpelling(){
+  const profile = activeProfile();
+  const wrap = el('div', {class:'worksheet-shell'});
+  if (!profile) return wrap;
+  if (!state.spellingWords && !state.spellingLoading){
+    wrap.appendChild(el('div', {class:'worksheet-controls'}, [
+      el('p', {style:'color:var(--ink-soft); margin-bottom:12px;'}, ['Hear a word, type what you hear, and check your spelling.']),
+      el('button', {class:'quiz-start-btn', onclick: generateSpellingWords}, ['Start Spelling Practice'])
+    ]));
+    return wrap;
+  }
+  if (state.spellingLoading){
+    wrap.appendChild(el('div', {class:'worksheet-controls'}, ['Preparing your word list...']));
+    return wrap;
+  }
+  if (!state.spellingWords.length){
+    wrap.appendChild(el('div', {class:'worksheet-controls'}, [
+      'Could not create a word list.',
+      el('div', {style:'margin-top:10px;'}, [el('button', {class:'quiz-start-btn', onclick: generateSpellingWords}, ['Try Again'])])
+    ]));
+    return wrap;
+  }
+  if (state.spellingIndex >= state.spellingWords.length){
+    wrap.appendChild(el('div', {class:'worksheet-controls'}, [
+      el('h2', {}, [`Score: ${state.spellingScore} / ${state.spellingWords.length}`]),
+      el('button', {class:'quiz-start-btn', onclick: generateSpellingWords}, ['Practice Again'])
+    ]));
+    return wrap;
+  }
+  const currentWord = state.spellingWords[state.spellingIndex];
+  const paper = el('div', {class:'worksheet-paper'}, [
+    el('div', {class:'meta'}, [`${profile.name} · Word ${state.spellingIndex+1} of ${state.spellingWords.length} · Score: ${state.spellingScore}`]),
+    el('div', {style:'text-align:center; margin:18px 0;'}, [
+      el('button', {class:'rhyme-play-btn', onclick: ()=>speak(currentWord)}, ['🔊 Hear the word'])
+    ]),
+    el('input', {
+      type:'text', value: state.spellingInput, placeholder:'Type what you hear...',
+      style:'width:100%; box-sizing:border-box; padding:10px 12px; font-size:15px; border:1.5px solid var(--line); border-radius:8px;',
+      oninput: (e)=>{ state.spellingInput = e.target.value; }
+    }),
+    state.spellingResult ? el('div', {style:`margin-top:10px; font-weight:700; color:${state.spellingResult==='correct'?'var(--green-ok)':'var(--maroon)'};`}, [
+      state.spellingResult === 'correct' ? '✓ Correct!' : `✗ Correct spelling: ${currentWord}`
+    ]) : null,
+    el('div', {style:'display:flex; gap:10px; justify-content:center; margin-top:16px;'}, [
+      state.spellingResult ? el('button', {class:'quiz-start-btn', onclick: ()=>{
+        state.spellingIndex++; state.spellingInput=''; state.spellingResult=null; render();
+      }}, ['Next Word →']) : el('button', {class:'quiz-start-btn', onclick: ()=>{
+        const correct = state.spellingInput.trim().toLowerCase() === currentWord.trim().toLowerCase();
+        state.spellingResult = correct ? 'correct' : 'wrong';
+        if (correct) state.spellingScore++;
+        render();
+      }}, ['Check'])
+    ])
+  ]);
+  wrap.appendChild(paper);
+  return wrap;
+}
+
 function el(tag, attrs, children){
   const e = document.createElement(tag);
   if (attrs) for (const k in attrs){
@@ -1543,13 +1861,30 @@ function renderSidebar(){
   if (state.canInstall){
     wrap.appendChild(el('button', {class:'install-btn', onclick: promptInstall}, ['⬇ Install app']));
   }
+  wrap.appendChild(el('button', {class:'btn-ghost', style:'margin-top:8px;', onclick: ()=>{ state.activeTab='family'; state.sidebarOpen=false; render(); }}, ['👪 '+t('familySummary')]));
+
+  const reminderBlock = el('div', {class:'setup-block', style:'margin-top:10px;'});
+  reminderBlock.appendChild(el('div', {class:'topic-hint'}, ['Daily reminder']));
+  reminderBlock.appendChild(el('div', {style:'display:flex; align-items:center; gap:8px; margin-top:4px;'}, [
+    el('button', {
+      class:'lang-btn'+(state.reminderEnabled?' active':''),
+      onclick: ()=>{ toggleReminder(!state.reminderEnabled); render(); }
+    }, [state.reminderEnabled ? 'On' : 'Off']),
+    el('input', {
+      type:'time', value: state.reminderTime,
+      style:'padding:6px; border:1px solid var(--line); border-radius:6px;',
+      onchange: (e)=>{ state.reminderTime = e.target.value; localStorage.setItem('apnaTutorReminderTime', e.target.value); if (state.reminderEnabled) scheduleReminderCheck(); }
+    })
+  ]));
+
+  wrap.appendChild(reminderBlock);
 
   wrap.appendChild(el('div', {class:'section-label'}, ['Children']));
   const profilesDiv = el('div', {class:'profiles'});
   state.profiles.forEach(p=>{
     const chip = el('div', {
       class: 'profile-chip' + (p.id===state.activeId ? ' active':''),
-      onclick: async ()=>{ stopSpeaking(); stopListening(); state.callMode=false; state.activeId = p.id; state.activeSubject=null; state.topic=""; state.chat=[]; state.quiz=null; state.pendingImage=null; state.sidebarOpen=false; await saveActiveId(); await loadProgress(p.id); await loadStreak(p.id); render(); }
+      onclick: async ()=>{ stopSpeaking(); stopListening(); state.callMode=false; state.activeId = p.id; state.activeSubject=null; state.topic=""; state.chat=[]; state.quiz=null; state.worksheet=null; state.spellingWords=null; state.playMode='cards'; state.pendingImage=null; state.sidebarOpen=false; await saveActiveId(); await loadProgress(p.id); await loadStreak(p.id); render(); }
     }, [
       el('div', {class:'avatar', style:`background:${colorForProfile(p.id)}`}, [initials(p.name)]),
       el('div', {class:'profile-meta'}, [
@@ -1615,7 +1950,7 @@ function renderSidebar(){
       const chip = el('div', {
         class: 'subject-chip' + (s===state.activeSubject ? ' active':''),
         style:`background:${subjColor(s)}`,
-        onclick: ()=>{ stopSpeaking(); stopListening(); state.callMode=false; state.activeSubject=s; state.chat=[]; state.quiz=null; state.quizSubmitted=false; state.pendingImage=null; state.sidebarOpen=false; render(); maybeStartWithRecap(profile, s); }
+        onclick: ()=>{ stopSpeaking(); stopListening(); state.callMode=false; state.activeSubject=s; state.chat=[]; state.quiz=null; state.quizSubmitted=false; state.worksheet=null; state.playMode='cards'; state.pendingImage=null; state.sidebarOpen=false; render(); maybeStartWithRecap(profile, s); }
       }, [s]);
       subjGrid.appendChild(chip);
     });
@@ -1864,6 +2199,169 @@ function renderChat(){
   return wrap;
 }
 
+// A finger-drawable canvas with a faint guide letter behind it - drawing itself
+// happens directly on the canvas without going through render(), so strokes
+// aren't wiped mid-stroke; only Clear/Next rebuild it via render().
+function buildTraceCanvas(letter){
+  const canvas = document.createElement('canvas');
+  canvas.width = 280; canvas.height = 280;
+  canvas.style.cssText = 'background:#fff; border:2px solid var(--line); border-radius:12px; touch-action:none; display:block; margin:0 auto;';
+  const ctx = canvas.getContext('2d');
+  const drawGuide = () => {
+    ctx.clearRect(0,0,canvas.width,canvas.height);
+    ctx.fillStyle = '#E3E7EE';
+    ctx.font = 'bold 220px sans-serif';
+    ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+    ctx.fillText(letter, canvas.width/2, canvas.height/2 + 14);
+  };
+  drawGuide();
+  ctx.strokeStyle = '#1B3358';
+  ctx.lineWidth = 9;
+  ctx.lineCap = 'round';
+  ctx.lineJoin = 'round';
+  let drawing = false;
+  const pos = (e) => {
+    const rect = canvas.getBoundingClientRect();
+    const cx = (e.touches ? e.touches[0].clientX : e.clientX) - rect.left;
+    const cy = (e.touches ? e.touches[0].clientY : e.clientY) - rect.top;
+    return { x: cx * canvas.width/rect.width, y: cy * canvas.height/rect.height };
+  };
+  const start = (e) => { e.preventDefault(); drawing = true; const p = pos(e); ctx.beginPath(); ctx.moveTo(p.x,p.y); };
+  const move = (e) => { if(!drawing) return; e.preventDefault(); const p = pos(e); ctx.lineTo(p.x,p.y); ctx.stroke(); };
+  const end = () => { drawing = false; };
+  canvas.addEventListener('mousedown', start);
+  canvas.addEventListener('mousemove', move);
+  window.addEventListener('mouseup', end);
+  canvas.addEventListener('touchstart', start, {passive:false});
+  canvas.addEventListener('touchmove', move, {passive:false});
+  canvas.addEventListener('touchend', end);
+  canvas._clear = drawGuide;
+  return canvas;
+}
+
+function renderPlayLearn(profile){
+  const wrap = el('div', {class:'play-shell'});
+  const subject = state.activeSubject || "Alphabets";
+  wrap.appendChild(el('div', {class:'play-hint'}, [`Tap a card to hear it - pick a subject from the menu (☰) to switch.`]));
+
+  const data = PLAY_LEARN_DATA[subject];
+  if (!data){
+    wrap.appendChild(el('div', {class:'play-hint'}, ['Pick Alphabets, Numbers, Colors & Shapes, My World, or Rhymes & Stories from the menu.']));
+    return wrap;
+  }
+
+  const makeCard = (label, emojiOrSwatch, speakText) => {
+    return el('div', {class:'play-card', onclick: ()=>speak(speakText || label)}, [
+      emojiOrSwatch,
+      el('div', {class:'word'}, [label])
+    ]);
+  };
+
+  if (subject === 'Alphabets' || subject === 'Numbers'){
+    wrap.appendChild(el('div', {class:'lang-toggle', style:'margin-bottom:14px;'}, [
+      el('button', {class:'lang-btn'+(state.playMode==='cards'?' active':''), onclick:()=>{ state.playMode='cards'; render(); }}, ['Cards']),
+      el('button', {class:'lang-btn'+(state.playMode!=='cards'?' active':''), onclick:()=>{ state.playMode = subject==='Alphabets' ? 'trace' : 'count'; render(); }}, [subject==='Alphabets' ? '✏️ Trace Letters' : '🔢 Count Along'])
+    ]));
+  }
+
+  if (subject === 'Alphabets' && state.playMode === 'trace'){
+    const idx = state.traceIndex % data.length;
+    const letterItem = data[idx];
+    const letter = letterItem.word[0];
+    wrap.appendChild(el('div', {style:'text-align:center; font-weight:700; margin-bottom:10px; font-size:15px;'}, [letterItem.word]));
+    wrap.appendChild(buildTraceCanvas(letter));
+    wrap.appendChild(el('div', {style:'display:flex; gap:10px; justify-content:center; margin-top:14px;'}, [
+      el('button', {class:'btn-ghost', onclick: ()=>{ render(); }}, ['Clear']),
+      el('button', {class:'quiz-start-btn', onclick: ()=>speak(letterItem.word)}, ['🔊 Hear']),
+      el('button', {class:'quiz-start-btn', onclick: ()=>{ state.traceIndex = (idx+1) % data.length; render(); }}, ['Next Letter →'])
+    ]));
+    return wrap;
+  }
+
+  if (subject === 'Numbers' && state.playMode === 'count'){
+    if (state.countTarget === null) state.countTarget = 1 + Math.floor(Math.random()*10);
+    if (state.countCurrent === null) state.countCurrent = 0;
+    wrap.appendChild(el('div', {style:'text-align:center; font-size:16px; margin-bottom:14px;'}, [`Tap the apple until you count to ${state.countTarget}!`]));
+    const basket = el('div', {style:'display:flex; flex-wrap:wrap; gap:8px; justify-content:center; min-height:60px; margin-bottom:18px;'});
+    for (let i=0;i<state.countCurrent;i++) basket.appendChild(el('span', {style:'font-size:30px;'}, ['🍎']));
+    wrap.appendChild(basket);
+    if (state.countCurrent < state.countTarget){
+      wrap.appendChild(el('div', {style:'text-align:center;'}, [
+        el('button', {class:'quiz-start-btn', onclick: ()=>{
+          state.countCurrent++;
+          speak(String(state.countCurrent));
+          render();
+        }}, ['🍎 Tap to Add'])
+      ]));
+    } else {
+      if (!state.countCelebrated){ state.countCelebrated = true; speak('Well done! You counted to ' + state.countTarget + '!'); }
+      wrap.appendChild(el('div', {style:'text-align:center;'}, [
+        el('div', {style:'font-size:20px; font-weight:700; color:var(--green-ok); margin-bottom:10px;'}, ['🎉 Well done!']),
+        el('button', {class:'quiz-start-btn', onclick: ()=>{ state.countTarget = 1+Math.floor(Math.random()*10); state.countCurrent = 0; state.countCelebrated = false; render(); }}, ['New Round'])
+      ]));
+    }
+    return wrap;
+  }
+
+  if (subject === 'Alphabets' || subject === 'Numbers'){
+    const grid = el('div', {class:'play-grid'});
+    data.forEach(item => {
+      grid.appendChild(makeCard(item.word, el('span',{class:'emoji'},[item.emoji])));
+    });
+    wrap.appendChild(grid);
+  } else if (subject === 'Colors & Shapes'){
+    wrap.appendChild(el('h3', {}, ['Colors']));
+    const colorGrid = el('div', {class:'play-grid'});
+    data.colors.forEach(c => {
+      colorGrid.appendChild(makeCard(c.word, el('div',{class:'play-swatch', style:`background:${c.hex};`})));
+    });
+    wrap.appendChild(colorGrid);
+    wrap.appendChild(el('h3', {style:'margin-top:20px;'}, ['Shapes']));
+    const shapeGrid = el('div', {class:'play-grid'});
+    data.shapes.forEach(s => {
+      shapeGrid.appendChild(makeCard(s.word, el('div',{class:'play-shape', style:s.css})));
+    });
+    wrap.appendChild(shapeGrid);
+  } else if (subject === 'My World'){
+    Object.keys(data).forEach(category => {
+      wrap.appendChild(el('h3', {style:'margin-top:16px;'}, [category]));
+      const grid = el('div', {class:'play-grid'});
+      data[category].forEach(item => grid.appendChild(makeCard(item.word, el('span',{class:'emoji'},[item.emoji]))));
+      wrap.appendChild(grid);
+    });
+  } else if (subject === 'Rhymes & Stories'){
+    data.forEach(rhyme => {
+      wrap.appendChild(el('div', {class:'rhyme-card'}, [
+        el('div', {class:'rhyme-title'}, [rhyme.title]),
+        el('button', {class:'rhyme-play-btn', onclick: ()=>speak(rhyme.text)}, ['▶ Play'])
+      ]));
+    });
+  }
+  return wrap;
+}
+
+function renderFunZone(){
+  if (state.funIndex === undefined || state.funIndex === null){
+    state.funIndex = Math.floor(Math.random() * FUN_ZONE_DATA.length);
+  }
+  const item = FUN_ZONE_DATA[state.funIndex];
+  const icon = item.type === 'joke' ? '😂' : item.type === 'riddle' ? '🤔' : '💡';
+  const wrap = el('div', {class:'play-shell'});
+  wrap.appendChild(el('div', {class:'rhyme-card', style:'text-align:center; padding:28px 20px;'}, [
+    el('div', {style:'font-size:40px; margin-bottom:10px;'}, [icon]),
+    el('div', {style:'font-size:16px; line-height:1.6; margin-bottom:16px;'}, [item.text]),
+    el('div', {style:'display:flex; gap:10px; justify-content:center;'}, [
+      el('button', {class:'rhyme-play-btn', onclick: ()=>speak(item.text)}, ['▶ Read Aloud']),
+      el('button', {class:'quiz-start-btn', onclick: ()=>{
+        let next;
+        do { next = Math.floor(Math.random() * FUN_ZONE_DATA.length); } while (next === state.funIndex && FUN_ZONE_DATA.length > 1);
+        state.funIndex = next; render();
+      }}, ['Next →'])
+    ])
+  ]));
+  return wrap;
+}
+
 function renderQuiz(){
   const profile = activeProfile();
   if (!profile) return el('div', {class:'empty-state'}, [el('h2',{},['Welcome!']), el('p',{},['Add your first child on the left to get started.'])]);
@@ -1999,33 +2497,133 @@ function render(){
 
   const main = el('div', {class:'main'});
   const profile = activeProfile();
+
+  if (state.activeTab === 'family'){
+    const topbar = el('div', {class:'topbar'}, [
+      el('div', {style:'display:flex; align-items:center; gap:10px;'}, [
+        el('button', {class:'menu-btn', onclick: ()=>{ state.sidebarOpen = !state.sidebarOpen; render(); }}, ['☰']),
+        el('h1', {}, [t('familySummary')])
+      ]),
+      el('button', {class:'btn-ghost', onclick: ()=>{ state.activeTab = profile ? 'tutor' : 'play'; render(); }}, ['← Back'])
+    ]);
+    main.appendChild(topbar);
+    const panel = el('div', {class:'panel'});
+    panel.appendChild(renderFamilySummary());
+    main.appendChild(panel);
+    app.appendChild(main);
+    return;
+  }
+
   const topbar = el('div', {class:'topbar'}, [
     el('div', {style:'display:flex; align-items:center; gap:10px;'}, [
       el('button', {class:'menu-btn', onclick: ()=>{ state.sidebarOpen = !state.sidebarOpen; render(); }}, ['☰']),
-      el('h1', {}, [profile ? profile.name+"'s learning space" : 'Welcome to Apna Tutor'])
+      el('h1', {}, [profile ? profile.name+t('learningSpace') : t('welcome')])
     ]),
     el('div', {class:'context'}, [profile && state.activeSubject ? (state.activeSubject + (state.topic? ' · '+state.topic : '')) : ''])
   ]);
   main.appendChild(topbar);
 
+  const early = profile && isEarlyYears(profile.grade);
+  const tabDefs = early
+    ? [['play',t('tabPlay')],['tutor',t('tabTutor')],['quiz',t('tabQuiz')],['fun',t('tabFun')],['progress',t('tabProgress')]]
+    : [['tutor',t('tabTutor')],['quiz',t('tabQuiz')],['worksheet',t('tabWorksheet')],['spelling',t('tabSpelling')],['fun',t('tabFun')],['progress',t('tabProgress')]];
+  const validKeys = tabDefs.map(([k])=>k);
+  if (!validKeys.includes(state.activeTab)) state.activeTab = early ? 'play' : 'tutor';
+
   const tabs = el('div', {class:'tabs'});
-  [['tutor','Ask Tutor'],['quiz','Practice Quiz'],['progress','Progress']].forEach(([key,label])=>{
+  tabDefs.forEach(([key,label])=>{
     tabs.appendChild(el('div', {class:'tab'+(state.activeTab===key?' active':''), onclick: ()=>{ state.activeTab=key; render(); }}, [label]));
   });
   main.appendChild(tabs);
 
   const panel = el('div', {class:'panel'});
-  if (state.activeTab==='tutor') panel.appendChild(renderChat());
+  if (state.activeTab==='play') panel.appendChild(renderPlayLearn(profile));
+  else if (state.activeTab==='tutor') panel.appendChild(renderChat());
   else if (state.activeTab==='quiz') panel.appendChild(renderQuiz());
+  else if (state.activeTab==='worksheet') panel.appendChild(renderWorksheet());
+  else if (state.activeTab==='spelling') panel.appendChild(renderSpelling());
+  else if (state.activeTab==='fun') panel.appendChild(renderFunZone());
   else panel.appendChild(renderProgress());
   main.appendChild(panel);
 
   app.appendChild(main);
 }
 
+// ---- Daily reminder (best-effort, local only) ----
+// Web push to a fully closed app needs a server + VAPID keys, which this app
+// doesn't have yet. This is the lighter-weight version: while the app (or an
+// installed PWA) is open in the background, it checks once a minute and fires
+// a local notification the first time the reminder time passes each day.
+let reminderInterval = null;
+function toggleReminder(enable){
+  state.reminderEnabled = enable;
+  localStorage.setItem('apnaTutorReminder', enable ? '1' : '0');
+  if (enable){
+    if ('Notification' in window && Notification.permission === 'default'){
+      Notification.requestPermission();
+    }
+    scheduleReminderCheck();
+  } else if (reminderInterval){
+    clearInterval(reminderInterval);
+    reminderInterval = null;
+  }
+}
+function scheduleReminderCheck(){
+  if (reminderInterval) clearInterval(reminderInterval);
+  const check = () => {
+    if (!state.reminderEnabled || !('Notification' in window) || Notification.permission !== 'granted') return;
+    const now = new Date();
+    const [h, m] = (state.reminderTime || '17:00').split(':').map(Number);
+    const todayKey = 'apnaTutorReminderFired_' + now.toISOString().slice(0,10);
+    if (now.getHours() > h || (now.getHours() === h && now.getMinutes() >= m)){
+      if (!localStorage.getItem(todayKey)){
+        localStorage.setItem(todayKey, '1');
+        new Notification('Apna Tutor', { body: "It's time for today's learning session!" });
+      }
+    }
+  };
+  check();
+  reminderInterval = setInterval(check, 60000);
+}
+
+// ---- Family summary (parent-facing digest across all children) ----
+async function fetchFamilySummary(){
+  try {
+    const res = await fetch('/api/family-summary');
+    return res.ok ? await res.json() : [];
+  } catch(e){ return []; }
+}
+function renderFamilySummary(){
+  const wrap = el('div', {class:'progress-list'});
+  if (!state.familySummary){
+    wrap.appendChild(el('div', {class:'worksheet-controls'}, ['Loading...']));
+    fetchFamilySummary().then(data => { state.familySummary = data; render(); });
+    return wrap;
+  }
+  if (!state.familySummary.length){
+    wrap.appendChild(el('div', {class:'worksheet-controls'}, ['Add a child first to see their summary here.']));
+    return wrap;
+  }
+  state.familySummary.forEach(p => {
+    const card = el('div', {class:'worksheet-paper', style:'margin-bottom:14px;'}, [
+      el('h2', {}, [`${p.name} · ${isEarlyYears(p.grade) ? p.grade : 'Class '+p.grade}`]),
+      el('div', {class:'meta'}, [`🔥 Current streak: ${p.currentStreak} day${p.currentStreak===1?'':'s'} · Longest: ${p.longestStreak} · Active days: ${p.activeDays} · Quizzes done: ${p.quizCount}`]),
+      p.weakTopics.length
+        ? el('div', {style:'margin-top:10px;'}, [
+            el('div', {style:'font-weight:700; font-size:13px; margin-bottom:4px;'}, ['Could use more practice:']),
+            ...p.weakTopics.map(w => el('div', {style:'font-size:13px; color:var(--ink-soft);'}, [`${w.subject}${w.topic ? ' · '+w.topic : ''} - scored ${w.score}/${w.total}`]))
+          ])
+        : el('div', {style:'margin-top:10px; font-size:13px; color:var(--green-ok);'}, ['No weak spots flagged yet - nice work!'])
+    ]);
+    wrap.appendChild(card);
+  });
+  return wrap;
+}
+
 loadProfiles();
 primeVoices();
 checkNeuralVoice();
+if (state.reminderEnabled) scheduleReminderCheck();
 
 // ---- PWA: service worker + install prompt ----
 if ('serviceWorker' in navigator) {

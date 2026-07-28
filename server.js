@@ -86,6 +86,30 @@ app.get('/api/streak/:profileId', (req, res) => {
   res.json(db.getEngagementStats(req.params.profileId));
 });
 
+// ---- Family summary (parent-facing weekly digest across all kids) ----
+app.get('/api/family-summary', (req, res) => {
+  const profiles = db.getProfiles();
+  const summary = profiles.map((p) => {
+    const stats = db.getEngagementStats(p.id);
+    const progress = db.getProgress(p.id);
+    const weakMap = {};
+    progress.forEach((e) => {
+      if (e.total > 0 && (e.score / e.total) < 0.6) {
+        if (!weakMap[e.subject] || weakMap[e.subject].date < e.date) weakMap[e.subject] = e;
+      }
+    });
+    const weakTopics = Object.keys(weakMap).map((s) => ({
+      subject: s, topic: weakMap[s].topic, score: weakMap[s].score, total: weakMap[s].total,
+    }));
+    return {
+      id: p.id, name: p.name, grade: p.grade,
+      currentStreak: stats.currentStreak, longestStreak: stats.longestStreak,
+      activeDays: stats.activeDays, quizCount: progress.length, weakTopics,
+    };
+  });
+  res.json(summary);
+});
+
 // ---- Anthropic proxy (keeps the API key server-side only) ----
 app.post('/api/messages', async (req, res) => {
   if (!process.env.ANTHROPIC_API_KEY) {
