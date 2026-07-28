@@ -1155,54 +1155,91 @@ function exactChapterList(subject, grade){
   return EXACT_CHAPTER_LISTS[grade + '|' + subject] || null;
 }
 
+// Textbook names are looked up per exact grade (not a shared band) so each
+// grade gets its real NCERT title rather than a neighboring grade's book.
+// Grade 2 English is the family's actual school books (from photos); every
+// other grade/subject below is the standard NCERT textbook for that grade.
+const TEXTBOOK_NAMES = {
+  1: {
+    "English": ["Marigold (NCERT)"],
+    "Hindi": ["Rimjhim (NCERT)"],
+    "Mathematics": ["Math-Magic (NCERT)"]
+  },
+  2: {
+    "English": ["21st Century English","Burlington English Grammar"],
+    "Hindi": ["Rimjhim (NCERT)"],
+    "Mathematics": ["Math-Magic (NCERT)"]
+  },
+  3: {
+    "English": ["Marigold (NCERT)"],
+    "Hindi": ["Rimjhim (NCERT)"],
+    "Mathematics": ["Math-Magic (NCERT)"],
+    "EVS": ["Looking Around (NCERT)"]
+  },
+  4: {
+    "English": ["Marigold (NCERT)"],
+    "Hindi": ["Rimjhim (NCERT)"],
+    "Mathematics": ["Math-Magic (NCERT)"],
+    "EVS": ["Looking Around (NCERT)"]
+  },
+  5: {
+    "English": ["Marigold (NCERT)"],
+    "Hindi": ["Rimjhim (NCERT)"],
+    "Mathematics": ["Math-Magic (NCERT)"],
+    "EVS": ["Looking Around (NCERT)"]
+  },
+  6: {
+    "English": ["Honeysuckle (NCERT)","A Pact with the Sun (NCERT)"],
+    "Hindi": ["Vasant (NCERT)","Bal Ram Katha (NCERT)"],
+    "Mathematics": ["Mathematics (NCERT)"],
+    "Science": ["Science (NCERT)"],
+    "Social Science": ["Our Pasts I (NCERT)","The Earth Our Habitat (NCERT)","Social and Political Life I (NCERT)"],
+    "Sanskrit": ["Ruchira Bhag 1 (NCERT)"],
+    "French": ["Avenir"],
+    "German": ["Hallo Deutsch / Deutsch und Ich"]
+  },
+  7: {
+    "English": ["Honeycomb (NCERT)","An Alien Hand (NCERT)"],
+    "Hindi": ["Vasant (NCERT)","Durva (NCERT)"],
+    "Mathematics": ["Mathematics (NCERT)"],
+    "Science": ["Science (NCERT)"],
+    "Social Science": ["Our Pasts II (NCERT)","Our Environment (NCERT)","Social and Political Life II (NCERT)"],
+    "Sanskrit": ["Ruchira Bhag 2 (NCERT)"],
+    "French": ["Avenir"],
+    "German": ["Hallo Deutsch / Deutsch und Ich"]
+  },
+  8: {
+    "English": ["Honeydew (NCERT)","It So Happened (NCERT)"],
+    "Hindi": ["Vasant (NCERT)","Durva (NCERT)"],
+    "Mathematics": ["Mathematics (NCERT)"],
+    "Science": ["Science (NCERT)"],
+    "Social Science": ["Our Pasts III (NCERT)","Resource and Development (NCERT)","Social and Political Life III (NCERT)"],
+    "Sanskrit": ["Ruchira Bhag 3 (NCERT)"],
+    "French": ["Avenir"],
+    "German": ["Hallo Deutsch / Deutsch und Ich"]
+  },
+  9: {
+    "English": ["Beehive (NCERT)","Moments (NCERT)"],
+    "Hindi": ["Kshitij (NCERT)","Kritika (NCERT)"],
+    "Mathematics": ["Mathematics (NCERT)"],
+    "Science": ["Science (NCERT)"],
+    "Social Science": ["India and the Contemporary World I (NCERT)","Contemporary India I (NCERT)","Democratic Politics I (NCERT)","Economics (NCERT)"],
+    "Sanskrit": ["Shemushi Bhag 1 (NCERT)"]
+  },
+  10: {
+    "English": ["First Flight (NCERT)","Footprints Without Feet (NCERT)"],
+    "Hindi": ["Kshitij (NCERT)","Kritika (NCERT)"],
+    "Mathematics": ["Mathematics (NCERT)"],
+    "Science": ["Science (NCERT)"],
+    "Social Science": ["India and the Contemporary World II (NCERT)","Contemporary India II (NCERT)","Democratic Politics II (NCERT)","Understanding Economic Development (NCERT)"],
+    "Sanskrit": ["Shemushi Bhag 2 (NCERT)"]
+  }
+};
+
 function textbookHint(subject, grade){
   if (isEarlyYears(grade)) return '';
   const g = parseInt(grade, 10);
-  let band;
-  if (g <= 2) band = 'g1_2';
-  else if (g <= 5) band = 'g3_5';
-  else if (g <= 8) band = 'g6_8';
-  else if (g === 9) band = 'g9';
-  else if (g === 10) band = 'g10';
-  else return '';
-
-  const map = {
-    g1_2: {
-      "English": ["21st Century English","Burlington English Grammar"],
-      "Hindi": ["Nai Udaan"],
-      "EVS": ["My Green World"],
-      "Mathematics": ["Ready to Mathematics"]
-    },
-    g3_5: {
-      "English": ["21st Century English","Burlington English Grammar","Footprints"],
-      "Hindi": ["Parivesh Hindi","Sarthak Hindi Vyakaran"],
-      "Mathematics": ["Ready to Mathematics"],
-      "Science": ["Science Now"]
-    },
-    g6_8: {
-      "English": ["21st Century English","Burlington English Grammar"],
-      "Hindi": ["Sarthak Hindi Vyakaran","Malhar (NCERT)"],
-      "Mathematics": ["Maths (NCERT)"],
-      "Science": ["Science Now"],
-      "Social Science": ["Exploring Society India and Beyond (NCERT)","Kausal Bodh (NCERT)"],
-      "French": ["Avenir"],
-      "German": ["Hallo Deutsch / Deutsch und Ich"],
-      "Sanskrit": ["Deepikam (NCERT)","Divyam Sanskrit Grammar"]
-    },
-    g9: {
-      "English": ["Beehive (NCERT)","Moments (NCERT)"],
-      "Mathematics": ["Mathematics (NCERT)"],
-      "Science": ["Science (NCERT)"],
-      "Social Science": ["Democratic Politics (NCERT)","Economics (NCERT)","History (NCERT)","Geography (NCERT)"]
-    },
-    g10: {
-      "English": ["First Flight (NCERT)","Footprints (NCERT)"],
-      "Mathematics": ["Mathematics (NCERT)"],
-      "Science": ["Science (NCERT)"],
-      "Social Science": ["Democratic Politics (NCERT)","Economics (NCERT)","History (NCERT)","Geography (NCERT)"]
-    }
-  };
-  const names = (map[band] && map[band][subject]) || null;
+  const names = (TEXTBOOK_NAMES[g] && TEXTBOOK_NAMES[g][subject]) || null;
   if (!names) return '';
   return ` The child's actual textbook(s) for this subject are called ${names.join(' and ')} - you may refer to them by name to feel aligned with their real class, though you do not have their exact page-by-page contents, so keep explanations general rather than claiming specific page or chapter numbers.`;
 }
