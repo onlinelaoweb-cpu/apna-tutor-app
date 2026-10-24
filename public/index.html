@@ -1614,10 +1614,246 @@ async function sendChat(text){
       state.chat.push({role:"assistant", text: cleaned});
     }
   } catch(e){
-    state.chat.push({role:"assistant", text:"Hmm, I couldn't reach the tutor service right now. Please try again."});
+    state.chat.push({role:"assistant", text:"The tutor is resting right now (the free AI limit may be over for today). Please try again a little later, or try a Quiz or Spelling practice meanwhile."});
   }
   state.chatLoading = false;
   render();
+}
+
+// ---- Offline fallback: works with NO AI and NO internet service ----
+// Used automatically when the AI is switched off, over its free limit, or unreachable.
+function rndInt(a, b){ return a + Math.floor(Math.random() * (b - a + 1)); }
+function shuffled(arr){ const a = arr.slice(); for (let i = a.length - 1; i > 0; i--){ const j = Math.floor(Math.random() * (i + 1)); [a[i], a[j]] = [a[j], a[i]]; } return a; }
+function pickN(arr, n){ return shuffled(arr).slice(0, n); }
+function gradeNum(profile){ const g = parseInt(profile.grade, 10); return isNaN(g) ? 3 : g; }
+
+// One maths question for a class: {q, ans, expl}
+function mathItem(g){
+  let a, b, c, t;
+  if (g <= 1){
+    if (Math.random() < 0.5){ a = rndInt(1, 12); b = rndInt(1, 20 - a); return {q: `${a} + ${b} = ?`, ans: a + b, expl: `${a} plus ${b} is ${a + b}.`}; }
+    a = rndInt(5, 20); b = rndInt(1, a); return {q: `${a} - ${b} = ?`, ans: a - b, expl: `${a} minus ${b} is ${a - b}.`};
+  }
+  if (g === 2){
+    t = rndInt(0, 3);
+    if (t === 0){ a = rndInt(10, 60); b = rndInt(10, 99 - a); return {q: `${a} + ${b} = ?`, ans: a + b, expl: `${a} + ${b} = ${a + b}.`}; }
+    if (t === 1){ a = rndInt(30, 99); b = rndInt(10, a); return {q: `${a} - ${b} = ?`, ans: a - b, expl: `${a} - ${b} = ${a - b}.`}; }
+    a = pickN([2, 5, 10, 3], 1)[0]; b = rndInt(1, 10); return {q: `${a} x ${b} = ?`, ans: a * b, expl: `${a} groups of ${b} make ${a * b}.`};
+  }
+  if (g === 3){
+    t = rndInt(0, 3);
+    if (t === 0){ a = rndInt(100, 600); b = rndInt(100, 399); return {q: `${a} + ${b} = ?`, ans: a + b, expl: `Add ones, tens, then hundreds: ${a + b}.`}; }
+    if (t === 1){ a = rndInt(400, 999); b = rndInt(100, 399); return {q: `${a} - ${b} = ?`, ans: a - b, expl: `${a} - ${b} = ${a - b}.`}; }
+    if (t === 2){ a = rndInt(2, 10); b = rndInt(2, 10); return {q: `${a} x ${b} = ?`, ans: a * b, expl: `${a} x ${b} = ${a * b}.`}; }
+    b = rndInt(2, 9); c = rndInt(2, 10); return {q: `${b * c} ÷ ${b} = ?`, ans: c, expl: `${b} x ${c} = ${b * c}, so ${b * c} ÷ ${b} = ${c}.`};
+  }
+  if (g === 4){
+    t = rndInt(0, 3);
+    if (t === 0){ a = rndInt(12, 99); b = rndInt(2, 9); return {q: `${a} x ${b} = ?`, ans: a * b, expl: `${a} x ${b} = ${a * b}.`}; }
+    if (t === 1){ b = rndInt(3, 9); c = rndInt(11, 40); return {q: `${b * c} ÷ ${b} = ?`, ans: c, expl: `${b} x ${c} = ${b * c}.`}; }
+    if (t === 2){ a = rndInt(3, 20); b = rndInt(2, 15); return {q: `A rectangle is ${a} cm long and ${b} cm wide. What is its perimeter in cm?`, ans: 2 * (a + b), expl: `Perimeter = 2 x (${a} + ${b}) = ${2 * (a + b)}.`}; }
+    a = rndInt(1000, 5000); b = rndInt(100, 999); return {q: `${a} + ${b} = ?`, ans: a + b, expl: `${a} + ${b} = ${a + b}.`};
+  }
+  if (g === 5){
+    t = rndInt(0, 3);
+    if (t === 0){ a = rndInt(2, 12); b = rndInt(2, 12); c = rndInt(2, 9); return {q: `What is 1/${c} of ${c * a}?`, ans: a, expl: `Divide ${c * a} by ${c} to get ${a}.`}; }
+    if (t === 1){ a = rndInt(4, 25); b = rndInt(3, 20); return {q: `Area of a rectangle ${a} cm by ${b} cm, in square cm?`, ans: a * b, expl: `Area = length x width = ${a} x ${b} = ${a * b}.`}; }
+    if (t === 2){ a = pickN([10, 20, 25, 50], 1)[0]; b = rndInt(2, 12) * 20; return {q: `What is ${a}% of ${b}?`, ans: a * b / 100, expl: `${a}% of ${b} = ${a * b / 100}.`}; }
+    a = rndInt(11, 25); b = rndInt(11, 25); return {q: `${a} x ${b} = ?`, ans: a * b, expl: `${a} x ${b} = ${a * b}.`};
+  }
+  if (g <= 7){
+    t = rndInt(0, 3);
+    if (t === 0){ a = rndInt(2, 15); b = rndInt(10, 60); return {q: `Solve: x + ${a} = ${a + b}`, ans: b, expl: `Subtract ${a} from both sides: x = ${b}.`}; }
+    if (t === 1){ a = rndInt(1, 20); b = rndInt(a + 1, a + 20); return {q: `${a} - ${b} = ?`, ans: a - b, expl: `${a} is smaller than ${b}, so the answer is negative: ${a - b}.`}; }
+    if (t === 2){ a = pickN([10, 20, 25, 40, 50], 1)[0]; b = rndInt(1, 15) * 20; return {q: `What is ${a}% of ${b}?`, ans: a * b / 100, expl: `${a}% of ${b} = ${a * b / 100}.`}; }
+    a = rndInt(10, 60); b = rndInt(10, 60); c = rndInt(10, 60); c += (3 - (a + b + c) % 3) % 3; return {q: `What is the average of ${a}, ${b} and ${c}?`, ans: (a + b + c) / 3, expl: `Sum = ${a + b + c}. Divide by 3: ${(a + b + c) / 3}.`};
+  }
+  t = rndInt(0, 3);
+  if (t === 0){ a = rndInt(2, 9); b = rndInt(1, 20); c = rndInt(1, 12); return {q: `Solve: ${a}x + ${b} = ${a * c + b}`, ans: c, expl: `Subtract ${b}: ${a}x = ${a * c}. Divide by ${a}: x = ${c}.`}; }
+  if (t === 1){ a = rndInt(2, 20); return {q: `√${a * a} = ?`, ans: a, expl: `${a} x ${a} = ${a * a}.`}; }
+  if (t === 2){ a = rndInt(2, 15); return {q: `${a}² = ?`, ans: a * a, expl: `${a} x ${a} = ${a * a}.`}; }
+  a = rndInt(2, 10) * 100; b = rndInt(2, 6); c = rndInt(2, 5); return {q: `Simple interest on ₹${a} at ${b}% per year for ${c} years (in ₹)?`, ans: a * b * c / 100, expl: `SI = P x R x T / 100 = ${a} x ${b} x ${c} / 100 = ${a * b * c / 100}.`};
+}
+function mathQuestions(g, n){
+  const out = [], seen = new Set();
+  let guard = 0;
+  while (out.length < n && guard++ < 60){ const it = mathItem(g); if (seen.has(it.q)) continue; seen.add(it.q); out.push(it); }
+  return out;
+}
+function optionsFor(ans){
+  const set = new Set([ans]);
+  const cands = [ans + 1, ans - 1, ans + 2, ans - 2, ans + 10, ans - 10, ans * 2, Math.round(ans / 2) || ans + 3, ans + 5, ans - 5];
+  for (const x of shuffled(cands)){ if (set.size >= 4) break; if (Number.isFinite(x) && x >= (ans < 0 ? -9999 : 0) && !set.has(x)) set.add(x); }
+  let k = 3; while (set.size < 4){ set.add(ans + k); k++; }
+  const arr = shuffled([...set]);
+  return { options: arr.map(String), correct: arr.indexOf(ans) };
+}
+
+// Small general-knowledge banks (facts every teacher would agree on). [question, [options], correctIndex, explanation]
+const LOCAL_BANK = {
+  "EVS": { lo: [
+    ["Which animal gives us milk?", ["Cow","Lion","Snake","Eagle"], 0, "Cows give us milk."],
+    ["What do plants need to grow?", ["Water and sunlight","Only toys","Only sand","Only stones"], 0, "Plants need water, air and sunlight."],
+    ["Which part of the body do we use to see?", ["Eyes","Ears","Nose","Hands"], 0, "We see with our eyes."],
+    ["Which of these is a vehicle?", ["Bus","Tree","Cloud","Flower"], 0, "A bus carries people from place to place."],
+    ["Which season is the hottest?", ["Summer","Winter","Spring","Monsoon"], 0, "Summer is the hottest season."],
+    ["What do birds use to fly?", ["Wings","Fins","Horns","Tails only"], 0, "Birds fly with their wings."],
+    ["Which one is a fruit?", ["Mango","Potato","Onion","Carrot"], 0, "Mango is a sweet fruit."],
+    ["We should wash our hands before eating.", ["True","False","Only on Sunday","Never"], 0, "Clean hands keep germs away."]
+  ]},
+  "Science": {
+    lo: [
+      ["What do we call the star that gives us light in the day?", ["Sun","Moon","Mars","Comet"], 0, "The Sun is our nearest star."],
+      ["Which of these is a living thing?", ["Tree","Stone","Chair","Pencil"], 0, "Trees grow, breathe and make seeds."],
+      ["Water becomes ice when it is...", ["Very cold","Very hot","Windy","Dirty"], 0, "Water freezes into ice when it is very cold."],
+      ["Which organ helps us breathe?", ["Lungs","Stomach","Heart","Skin"], 0, "Lungs help us breathe air."],
+      ["Which of these animals lays eggs?", ["Hen","Cow","Dog","Goat"], 0, "A hen lays eggs."],
+      ["Which gas do we breathe in to live?", ["Oxygen","Smoke","Dust","Steam"], 0, "We need oxygen to live."],
+      ["The Earth goes around the...", ["Sun","Moon","Cloud","Mountain"], 0, "The Earth moves around the Sun."],
+      ["Which sense organ helps us smell?", ["Nose","Eyes","Ears","Tongue"], 0, "We smell with our nose."]
+    ],
+    mid: [
+      ["What is the process by which plants make their food?", ["Photosynthesis","Digestion","Evaporation","Respiration"], 0, "Plants use sunlight, water and carbon dioxide to make food."],
+      ["What is the chemical formula of water?", ["H2O","CO2","O2","NaCl"], 0, "Water has 2 hydrogen atoms and 1 oxygen atom."],
+      ["Which planet is known as the Red Planet?", ["Mars","Venus","Jupiter","Saturn"], 0, "Mars looks red because of iron-rich dust."],
+      ["Which part of the plant absorbs water from the soil?", ["Roots","Leaves","Flowers","Fruits"], 0, "Roots absorb water and minerals."],
+      ["What force pulls objects towards the Earth?", ["Gravity","Magnetism","Friction","Sound"], 0, "Gravity pulls things towards the Earth."],
+      ["Which blood cells carry oxygen?", ["Red blood cells","White blood cells","Platelets","Plasma"], 0, "Red blood cells carry oxygen using haemoglobin."],
+      ["Which is the largest organ of the human body?", ["Skin","Liver","Heart","Brain"], 0, "The skin is the largest organ."],
+      ["Sound cannot travel through...", ["A vacuum","Air","Water","Steel"], 0, "Sound needs a medium, and a vacuum has none."]
+    ],
+    hi: [
+      ["What is the SI unit of force?", ["Newton","Joule","Watt","Pascal"], 0, "Force is measured in newtons (N)."],
+      ["The powerhouse of the cell is the...", ["Mitochondria","Nucleus","Ribosome","Vacuole"], 0, "Mitochondria release energy for the cell."],
+      ["What is the pH of a neutral solution like pure water?", ["7","1","10","14"], 0, "pH 7 is neutral."],
+      ["Which gas is most abundant in Earth's atmosphere?", ["Nitrogen","Oxygen","Carbon dioxide","Hydrogen"], 0, "About 78% of air is nitrogen."],
+      ["Speed is distance divided by...", ["Time","Mass","Force","Volume"], 0, "Speed = distance / time."],
+      ["Which particle has a negative charge?", ["Electron","Proton","Neutron","Nucleus"], 0, "Electrons carry negative charge."],
+      ["What is the atomic number of carbon?", ["6","12","8","4"], 0, "Carbon has 6 protons, so its atomic number is 6."],
+      ["Which vitamin do we get mainly from sunlight?", ["Vitamin D","Vitamin C","Vitamin A","Vitamin B12"], 0, "Sunlight helps the skin make vitamin D."]
+    ]
+  },
+  "English": {
+    lo: [
+      ["Which word is a noun?", ["Dog","Run","Quickly","Blue"], 0, "A noun is the name of a person, place, animal or thing."],
+      ["Choose the correct word: She ___ a girl.", ["is","are","am","be"], 0, "We say 'She is'."],
+      ["What is the plural of 'cat'?", ["Cats","Cates","Catz","Cat"], 0, "Add -s to make most plurals."],
+      ["Which word means the opposite of 'big'?", ["Small","Tall","Wide","Long"], 0, "Small is the opposite of big."],
+      ["Which sentence is correct?", ["I have a ball.","I has a ball.","I am have a ball.","Me have ball."], 0, "We say 'I have'."],
+      ["Which word rhymes with 'cat'?", ["Hat","Dog","Sun","Pen"], 0, "Cat and hat end with the same sound."],
+      ["Which is a vowel?", ["E","B","T","M"], 0, "A, E, I, O, U are vowels."],
+      ["Which word is an action word (verb)?", ["Jump","Table","Green","Happy"], 0, "A verb tells what someone does."]
+    ],
+    mid: [
+      ["Which is the correct past tense of 'go'?", ["Went","Goed","Gone","Going"], 0, "'Went' is the past tense of 'go'."],
+      ["Choose the adjective: The tall boy ran fast.", ["tall","boy","ran","fast"], 0, "An adjective describes a noun."],
+      ["What is the plural of 'child'?", ["Children","Childs","Childes","Childrens"], 0, "'Children' is an irregular plural."],
+      ["Which word is an adverb?", ["Quickly","Quick","Quicken","Quickness"], 0, "Adverbs often end in -ly and describe verbs."],
+      ["Choose the correct sentence.", ["She doesn't like tea.","She don't like tea.","She not like tea.","She no likes tea."], 0, "With 'she' we use 'doesn't'."],
+      ["Which word is a synonym of 'happy'?", ["Joyful","Sad","Angry","Tired"], 0, "Joyful means the same as happy."],
+      ["Which punctuation ends a question?", ["?","!",".",","], 0, "A question mark ends a question."],
+      ["Choose the correct word: They ___ playing in the park.", ["are","is","am","was"], 0, "'They' goes with 'are'."]
+    ],
+    hi: [
+      ["Which sentence uses the passive voice?", ["The cake was eaten by Riya.","Riya ate the cake.","Riya is eating the cake.","Riya will eat the cake."], 0, "In passive voice the object comes first: 'was eaten by'."],
+      ["Choose the correct form: If I ___ you, I would study.", ["were","am","was being","be"], 0, "In the second conditional we use 'were'."],
+      ["What is the figure of speech in 'The wind whispered'?", ["Personification","Simile","Metaphor","Hyperbole"], 0, "Giving human actions to non-living things is personification."],
+      ["Which word is a conjunction?", ["Although","Beautiful","Slowly","Table"], 0, "'Although' joins two ideas."],
+      ["Choose the correctly spelt word.", ["Necessary","Neccessary","Necesary","Neccesary"], 0, "Necessary has one c and two s."],
+      ["The antonym of 'generous' is...", ["Selfish","Kind","Rich","Brave"], 0, "Selfish is the opposite of generous."],
+      ["Identify the tense: She has finished her work.", ["Present perfect","Simple past","Past perfect","Future"], 0, "'has + past participle' is present perfect."],
+      ["A word that replaces a noun is called a...", ["Pronoun","Adverb","Preposition","Verb"], 0, "He, she, it and they are pronouns."]
+    ]
+  },
+  "Social Science": {
+    lo: [
+      ["What is the capital of India?", ["New Delhi","Mumbai","Kolkata","Chennai"], 0, "New Delhi is the capital of India."],
+      ["Which is the national animal of India?", ["Tiger","Lion","Elephant","Peacock"], 0, "The tiger is India's national animal."],
+      ["Which is the national bird of India?", ["Peacock","Parrot","Sparrow","Eagle"], 0, "The peacock is India's national bird."],
+      ["On which day do we celebrate Independence Day?", ["15 August","26 January","2 October","14 November"], 0, "India became independent on 15 August 1947."],
+      ["How many colours are in our national flag?", ["Three","Two","Four","Five"], 0, "Saffron, white and green, with a blue wheel."],
+      ["Which river is called the holiest river in India?", ["Ganga","Yamuna","Godavari","Narmada"], 0, "The Ganga is considered sacred."],
+      ["Who is called the Father of the Nation?", ["Mahatma Gandhi","Nehru","Subhas Bose","Sardar Patel"], 0, "Mahatma Gandhi is the Father of the Nation."],
+      ["Who helps us when we are sick?", ["Doctor","Farmer","Tailor","Carpenter"], 0, "Doctors treat sick people."]
+    ],
+    mid: [
+      ["Who was the first Prime Minister of India?", ["Jawaharlal Nehru","Lal Bahadur Shastri","Indira Gandhi","Sardar Patel"], 0, "Jawaharlal Nehru took office in 1947."],
+      ["Which is the longest river in India?", ["Ganga","Godavari","Indus","Brahmaputra"], 0, "The Ganga is the longest river that flows mostly within India."],
+      ["How many states does India have?", ["28","25","29","30"], 0, "India has 28 states (and Union Territories as well)."],
+      ["Which ocean lies to the south of India?", ["Indian Ocean","Pacific Ocean","Atlantic Ocean","Arctic Ocean"], 0, "The Indian Ocean lies to the south."],
+      ["The Constitution of India came into force on...", ["26 January 1950","15 August 1947","2 October 1948","26 November 1949"], 0, "We celebrate this day as Republic Day."],
+      ["Which is the highest mountain peak in the world?", ["Mount Everest","K2","Kanchenjunga","Mount Kilimanjaro"], 0, "Mount Everest is about 8,849 m high."],
+      ["Which is the largest continent?", ["Asia","Africa","Europe","Australia"], 0, "Asia is the largest continent."],
+      ["Who wrote the national anthem 'Jana Gana Mana'?", ["Rabindranath Tagore","Bankim Chandra Chatterjee","Iqbal","Subramania Bharati"], 0, "Rabindranath Tagore wrote it."]
+    ],
+    hi: [
+      ["Who is the head of the Indian state?", ["The President","The Prime Minister","The Chief Justice","The Speaker"], 0, "The President is the constitutional head of state."],
+      ["The Revolt of 1857 began at...", ["Meerut","Delhi","Kanpur","Jhansi"], 0, "The revolt started at Meerut in May 1857."],
+      ["Which Article of the Constitution deals with Equality before law?", ["Article 14","Article 19","Article 21","Article 32"], 0, "Article 14 guarantees equality before the law."],
+      ["The Tropic of Cancer passes through which of these Indian states?", ["Madhya Pradesh","Kerala","Punjab","Assam"], 0, "It passes through eight states including Madhya Pradesh."],
+      ["Who gave the slogan 'Jai Jawan Jai Kisan'?", ["Lal Bahadur Shastri","Nehru","Gandhi","Patel"], 0, "Lal Bahadur Shastri gave this slogan in 1965."],
+      ["GDP stands for...", ["Gross Domestic Product","General Domestic Price","Gross Digital Product","Great Domestic Policy"], 0, "GDP is the total value of goods and services made in a country."],
+      ["Lok Sabha is also called the...", ["House of the People","Council of States","Supreme Court","Planning Commission"], 0, "Lok Sabha is the lower house of Parliament."],
+      ["Which movement did Gandhi start in 1930 with the Dandi March?", ["Salt Satyagraha","Quit India","Non-Cooperation","Swadeshi"], 0, "The Dandi March protested the salt tax."]
+    ]
+  },
+  "General": [
+    ["How many days are there in a week?", ["7","5","6","8"], 0, "A week has 7 days."],
+    ["Which planet do we live on?", ["Earth","Mars","Venus","Jupiter"], 0, "We live on planet Earth."],
+    ["What is the capital of India?", ["New Delhi","Mumbai","Jaipur","Pune"], 0, "New Delhi is the capital."],
+    ["How many months are there in a year?", ["12","10","11","13"], 0, "A year has 12 months."],
+    ["Which festival is called the festival of lights?", ["Diwali","Holi","Eid","Baisakhi"], 0, "Diwali is the festival of lights."],
+    ["Which is the largest animal on land?", ["Elephant","Giraffe","Horse","Rhino"], 0, "The African elephant is the largest land animal."],
+    ["Which sport is played with a bat and a wicket?", ["Cricket","Football","Hockey","Tennis"], 0, "Cricket uses a bat, ball and wickets."],
+    ["How many continents are there?", ["7","5","6","8"], 0, "There are 7 continents."],
+    ["Which is the biggest ocean?", ["Pacific Ocean","Indian Ocean","Atlantic Ocean","Arctic Ocean"], 0, "The Pacific is the largest ocean."],
+    ["Which bird cannot fly but runs fast?", ["Ostrich","Crow","Pigeon","Eagle"], 0, "The ostrich is the fastest running bird."]
+  ]
+};
+function bankKey(subject, g){
+  const band = g <= 4 ? 'lo' : (g <= 8 ? 'mid' : 'hi');
+  if (subject === 'Current Affairs') return {list: LOCAL_BANK.General};
+  if (subject === 'EVS') return {list: LOCAL_BANK.EVS.lo};
+  const map = {"Physics":"Science","Chemistry":"Science","Biology":"Science","History":"Social Science","Geography":"Social Science","Political Science":"Social Science","Economics":"Social Science"};
+  const k = map[subject] || subject;
+  if (LOCAL_BANK[k] && LOCAL_BANK[k][band]) return {list: LOCAL_BANK[k][band]};
+  return null;
+}
+// Returns {questions:[...]} in the same shape the AI quiz uses, or null if this subject has no offline questions.
+function localQuiz(profile, subject){
+  const g = gradeNum(profile);
+  if (isEarlyYears(profile.grade)) return null;
+  if (subject === 'Mathematics'){
+    const qs = mathQuestions(g, 5).map(it => { const o = optionsFor(it.ans); return {question: it.q, options: o.options, correct: o.correct, explanation: it.expl}; });
+    return {questions: qs, offline: true};
+  }
+  const b = bankKey(subject, g);
+  if (!b) return null;
+  const qs = pickN(b.list, 5).map(row => {
+    const order = shuffled([0, 1, 2, 3]);
+    return {question: row[0], options: order.map(i => row[1][i]), correct: order.indexOf(row[2]), explanation: row[3]};
+  });
+  return {questions: qs, offline: true};
+}
+function localWorksheet(profile, subject){
+  if (subject !== 'Mathematics' || isEarlyYears(profile.grade)) return null;
+  const g = gradeNum(profile);
+  const items = mathQuestions(g, 10);
+  return {
+    title: `Class ${profile.grade} Maths Practice`,
+    questions: items.map((it, i) => ({number: i + 1, text: it.q.replace(/ = \?$/, ' = ______')})),
+    answers: items.map((it, i) => ({number: i + 1, answer: String(it.ans)}))
+  };
+}
+const SPELL_WORDS = {
+  lo: ["apple","happy","school","water","friend","mother","father","green","mango","table","house","bread","sleep","smile","bird","chair","light","plant","river","train","horse","cloud","paper","juice","tiger","pencil","flower","garden","sister","brother"],
+  mid: ["beautiful","because","different","family","library","neighbour","exercise","animal","favourite","festival","knowledge","important","journey","mountain","measure","question","remember","special","surprise","weather","thought","though","address","calendar","delicious","enough","guest","honest","island","minute"],
+  hi: ["necessary","environment","government","separate","definitely","occasion","conscience","embarrass","achievement","restaurant","committee","parliament","vocabulary","temperature","independent","responsible","knowledge","recommend","privilege","accommodate","maintenance","unnecessary","pronunciation","immediately","opportunity","experience","guarantee","fascinate","miscellaneous","rhythm"]
+};
+function localSpelling(profile){
+  const g = gradeNum(profile);
+  const band = g <= 3 ? 'lo' : (g <= 7 ? 'mid' : 'hi');
+  return pickN(SPELL_WORDS[band], 10);
 }
 
 async function generateQuiz(){
@@ -1650,9 +1886,11 @@ async function generateQuiz(){
     let raw = await callClaude(sys, user, null, [], shouldUseWebSearch(profile, state.activeSubject));
     raw = raw.replace(/```json|```/g,"").trim();
     const parsed = JSON.parse(raw);
+    if (!parsed || !Array.isArray(parsed.questions) || !parsed.questions.length) throw new Error('bad quiz');
     state.quiz = parsed;
   } catch(e){
-    state.quiz = {error: true};
+    // AI unavailable (switched off, free limit reached, or no connection): use the built-in questions.
+    state.quiz = localQuiz(profile, state.activeSubject) || {error: true};
   }
   state.quizLoading = false;
   render();
@@ -1696,7 +1934,7 @@ async function generateWorksheet(){
     raw = raw.replace(/```json|```/g,"").trim();
     state.worksheet = JSON.parse(raw);
   } catch(e){
-    state.worksheet = {error: true};
+    state.worksheet = (state.worksheetType !== 'reading' && localWorksheet(profile, state.activeSubject)) || {error: true};
   }
   state.worksheetLoading = false;
   render();
@@ -1773,8 +2011,9 @@ async function generateSpellingWords(){
     raw = raw.replace(/```json|```/g,"").trim();
     const parsed = JSON.parse(raw);
     state.spellingWords = parsed.words || [];
+    if (!state.spellingWords.length) state.spellingWords = localSpelling(profile);
   } catch(e){
-    state.spellingWords = [];
+    state.spellingWords = localSpelling(profile);
   }
   state.spellingLoading = false;
   render();

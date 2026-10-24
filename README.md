@@ -3,19 +3,30 @@
 A home tutoring app for your kids: an AI chat tutor tuned to each child's grade,
 CBSE-style practice quizzes, and per-child progress tracking.
 
-## 1. Get an Anthropic API key
+## 1. Get a FREE AI key (Google Gemini)
 
-1. Go to https://console.anthropic.com and sign up / log in.
-2. Create an API key (this is billed separately, pay-as-you-go, from your claude.ai
-   subscription — usage for a family app like this is typically very cheap).
+1. Go to https://aistudio.google.com/apikey and sign in with a Google account.
+2. Press **Create API key** and copy it. No credit card is needed for the free tier.
 3. Keep the key handy for step 3 below.
+
+The free tier has daily limits that Google can change. If the limit is reached, or the AI is
+unreachable, the app does not break: quizzes (Maths, Science, English, Social Science, EVS,
+Current Affairs), Maths worksheets and Spelling practice switch to built-in offline versions.
+Only the live tutor chat, photo questions and other subjects wait until the limit resets.
+
+**Privacy note:** on Google's free tier, the text and photos sent to the AI can be used by Google
+to improve its products and may be read by reviewers. The app never sends a child's name, only
+the grade, subject and what is typed, spoken or photographed. If you prefer more privacy, use a
+paid key or set `AI_PROVIDER=none`.
+
+Prefer Claude instead? Set `AI_PROVIDER=claude` and `ANTHROPIC_API_KEY` (that one is billed per use).
 
 ## 2. Run it locally (optional, to try it first)
 
 ```bash
 npm install
 cp .env.example .env
-# edit .env and paste your key after ANTHROPIC_API_KEY=
+# edit .env and paste your key after GEMINI_API_KEY=
 npm start
 ```
 
@@ -36,7 +47,8 @@ Then open http://localhost:3000 in your browser.
 2. On https://railway.com, click **New Project → Deploy from GitHub repo**, and
    pick this repository. Railway auto-detects it's a Node.js app.
 3. Open the new service's **Variables** tab and add:
-   - `ANTHROPIC_API_KEY` = your key from step 1
+   - `AI_PROVIDER` = `gemini`
+   - `GEMINI_API_KEY` = your free key from step 1
    (Do NOT commit your real `.env` file to GitHub — it's already in `.gitignore`.)
 4. Open the **Settings → Networking** tab and click **Generate Domain** to get a
    public URL for the app.
@@ -62,8 +74,9 @@ on every redeploy.
 
 ## Notes on cost
 
-- Every chat message and every quiz generated makes one call to the Anthropic
-  API, billed to your API key — not your claude.ai plan.
-- For light home use (a few chats/quizzes a day per child), costs are typically
-  a small fraction of a dollar per month, but keep an eye on
-  https://console.anthropic.com usage if you want to be sure.
+- With `AI_PROVIDER=gemini` the AI part costs nothing (free tier, no card).
+- `DAILY_AI_LIMIT` (default 300) stops the app from using more than that many AI calls a day.
+- Leave `GOOGLE_TTS_API_KEY` empty to stay at zero cost; the browser's built-in voice is used.
+- Railway hosting itself is a separate charge after its free trial. To pay nothing at all you can
+  run the app on a free host or on your own computer (`npm start`).
+- `GET /api/ai/status` shows which AI is active.
