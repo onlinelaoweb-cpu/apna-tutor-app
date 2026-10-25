@@ -1521,17 +1521,20 @@ async function maybeStartWithRecap(profile, subject){
     if (sessionTopic) logTopicEngagement(profile, subject, sessionTopic);
 
     if (shouldAutoSpeak(profile)){
+      // "Thinking" stays visible until the voice has really started, so there is
+      // no empty gap between the answer arriving and the voice beginning.
       const msg = { role: "assistant", text: "" };
-      state.chat.push(msg);
-      state.chatLoading = false;
-      render();
+      let shown = false;
+      const showMsg = () => { if (!shown){ shown = true; state.chat.push(msg); state.chatLoading = false; } };
       speakReply(cleaned, {
         onWord: (charIndex) => {
+          showMsg();
           msg.text = cleaned.slice(0, charIndex);
           render();
           scrollChatToBottom();
         },
         onDone: () => {
+          showMsg();
           msg.text = cleaned;
           render();
           if (shouldConversationMode() && (window.SpeechRecognition || window.webkitSpeechRecognition)){
@@ -1584,17 +1587,20 @@ async function sendChat(text){
     if (shouldAutoSpeak(profile)){
       // Reveal the caption in step with the voice, instead of dumping the whole
       // answer on screen before a single word has been spoken.
+      // "Thinking" stays visible until the voice has really started, so there is
+      // no empty gap between the answer arriving and the voice beginning.
       const msg = { role: "assistant", text: "" };
-      state.chat.push(msg);
-      state.chatLoading = false;
-      render();
+      let shown = false;
+      const showMsg = () => { if (!shown){ shown = true; state.chat.push(msg); state.chatLoading = false; } };
       speakReply(cleaned, {
         onWord: (charIndex) => {
+          showMsg();
           msg.text = cleaned.slice(0, charIndex);
           render();
           scrollChatToBottom();
         },
         onDone: () => {
+          showMsg();
           msg.text = cleaned;
           render();
           // Live conversation mode: once the tutor finishes speaking, automatically

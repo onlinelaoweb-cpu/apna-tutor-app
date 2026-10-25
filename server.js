@@ -139,6 +139,9 @@ const GEMINI_MODELS = (process.env.GEMINI_MODELS || 'gemini-3.8-flash,gemini-3.5
   .split(',').map((m) => m.trim()).filter(Boolean);
 const GEMINI_BASE = process.env.GEMINI_BASE || 'https://generativelanguage.googleapis.com';
 
+let lastGoodModel = null;
+const thinkForm = {};
+
 async function askGemini({ system, priorTurns, message, image, webSearch }) {
   const contents = priorTurns.map((h) => ({ role: h.role === 'assistant' ? 'model' : 'user', parts: [{ text: h.content }] }));
   while (contents.length && contents[0].role !== 'user') contents.shift();
@@ -154,25 +157,44 @@ async function askGemini({ system, priorTurns, message, image, webSearch }) {
   else if (/ONLY valid JSON/i.test(system || '')) body.generationConfig.responseMimeType = 'application/json';
 
   let lastErr = 'Gemini error';
-  for (const model of GEMINI_MODELS) {
-    try {
-      const upstream = await fetch(`${GEMINI_BASE}/v1beta/models/${encodeURIComponent(model)}:generateContent`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json', 'x-goog-api-key': process.env.GEMINI_API_KEY },
-        body: JSON.stringify(body),
-      });
-      const data = await upstream.json().catch(() => ({}));
-      if (!upstream.ok) {
-        lastErr = (data.error && data.error.message) || ('Gemini error ' + upstream.status);
-        if ([400, 404, 429, 500, 503].includes(upstream.status)) continue; // try the next model
-        throw new Error(lastErr);
-      }
-      const cand = (data.candidates || [])[0];
-      const text = ((cand && cand.content && cand.content.parts) || [])
-        .filter((p) => p.text && !p.thought).map((p) => p.text).join('\n').trim();
-      if (!text) { lastErr = 'Empty reply (' + ((cand && cand.finishReason) || (data.promptFeedback && data.promptFeedback.blockReason) || 'no text') + ')'; continue; }
-      return text;
-    } catch (e) { lastErr = e.message; }
+  // Chat replies are short; only quiz/worksheet JSON needs the big output budget.
+  const isJson = !webSearch && /ONLY valid JSON/i.test(system || '');
+  if (!isJson) body.generationConfig.maxOutputTokens = 700;
+  // Try the model that worked last time first, so a wrong/busy model name does not cost a wasted round-trip on every message.
+  const order = lastGoodModel && GEMINI_MODELS.includes(lastGoodModel)
+    ? [lastGoodModel, ...GEMINI_MODELS.filter((m) => m !== lastGoodModel)] : GEMINI_MODELS;
+  // "Thinking" makes Gemini slow. Ask for as little as possible; if a model does not
+  // accept that setting, fall back to the next form (remembered per model).
+  const THINK_FORMS = [{ thinkingLevel: 'low' }, { thinkingBudget: 0 }, null];
+  for (const model of order) {
+    for (let fi = (thinkForm[model] || 0); fi < THINK_FORMS.length; fi++) {
+      const t0 = Date.now();
+      const reqBody = JSON.parse(JSON.stringify(body));
+      if (THINK_FORMS[fi]) reqBody.generationConfig.thinkingConfig = THINK_FORMS[fi];
+      try {
+        const upstream = await fetch(`${GEMINI_BASE}/v1beta/models/${encodeURIComponent(model)}:generateContent`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', 'x-goog-api-key': process.env.GEMINI_API_KEY },
+          body: JSON.stringify(reqBody),
+        });
+        const data = await upstream.json().catch(() => ({}));
+        if (!upstream.ok) {
+          lastErr = (data.error && data.error.message) || ('Gemini error ' + upstream.status);
+          console.log('[gemini] ' + model + ' form' + fi + ' failed ' + upstream.status + ' in ' + (Date.now() - t0) + 'ms: ' + String(lastErr).slice(0, 120));
+          if (upstream.status === 400 && THINK_FORMS[fi] && /think/i.test(lastErr)) { thinkForm[model] = fi + 1; continue; } // try a simpler thinking setting
+          if ([400, 404, 429, 500, 503].includes(upstream.status)) break; // try the next model
+          throw new Error(lastErr);
+        }
+        const cand = (data.candidates || [])[0];
+        const text = ((cand && cand.content && cand.content.parts) || [])
+          .filter((p) => p.text && !p.thought).map((p) => p.text).join('\n').trim();
+        if (!text) { lastErr = 'Empty reply (' + ((cand && cand.finishReason) || (data.promptFeedback && data.promptFeedback.blockReason) || 'no text') + ')'; break; }
+        thinkForm[model] = fi;
+        lastGoodModel = model;
+        console.log('[gemini] ' + model + ' ok in ' + (Date.now() - t0) + 'ms' + (webSearch ? ' (search)' : '') + (THINK_FORMS[fi] ? ' think=' + JSON.stringify(THINK_FORMS[fi]) : ''));
+        return text;
+      } catch (e) { lastErr = e.message; break; }
+    }
   }
   throw new Error(lastErr);
 }
