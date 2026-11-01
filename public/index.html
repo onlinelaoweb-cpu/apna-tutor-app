@@ -2108,6 +2108,8 @@ function renderSidebar(){
   }
   wrap.appendChild(el('button', {class:'btn-ghost', style:'margin-top:8px;', onclick: ()=>{ state.activeTab='family'; state.sidebarOpen=false; render(); }}, ['👪 '+t('familySummary')]));
 
+  wrap.appendChild(el('a', {class:'btn-ghost', href:'/mini-champs.html', style:'display:block; margin-top:8px; text-align:center; text-decoration:none;'}, ['🎮 Mini Champs (practice games)']));
+
   const reminderBlock = el('div', {class:'setup-block', style:'margin-top:10px;'});
   reminderBlock.appendChild(el('div', {class:'topic-hint'}, ['Daily reminder']));
   reminderBlock.appendChild(el('div', {style:'display:flex; align-items:center; gap:8px; margin-top:4px;'}, [

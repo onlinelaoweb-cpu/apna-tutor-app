@@ -1,0 +1,883 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#1B3358">
+<link rel="icon" type="image/png" sizes="192x192" href="/icons/icon-192.png">
+<title>Mini Champs - Apna Tutor</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Atkinson+Hyperlegible:wght@400;700&family=Baloo+2:wght@600;800&display=swap">
+<style>
+/* Layout concept: a tidy practice workbook. One calm column, big tap targets,
+   and a score strip on every game card that shows exactly what to beat next. */
+:root{
+  --font-display:'Baloo 2','Trebuchet MS',system-ui,sans-serif;
+  --font-body:'Atkinson Hyperlegible','Segoe UI',system-ui,sans-serif;
+  --bg:#EDF2F8; --surface:#FFFFFF; --surface2:#E2EAF4; --ink:#14213D; --ink2:#4A5A78; --line:#C9D5E5;
+  --green:#0A7F58; --green-soft:#D5EFE4; --rose:#C2255C; --rose-soft:#F9DCE7; --on-accent:#FFFFFF;
+  --good:#0A6B4A; --good-bg:#DDF3E9; --bad:#A32014; --bad-bg:#FDE7E2;
+  --pad-red:#D9373B; --pad-blue:#3452C9; --pad-yellow:#E8A800; --pad-green:#238A5A; --on-pad:#FFFFFF;
+  --accent:var(--green); --accent-soft:var(--green-soft);
+}
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme="light"]){
+    --bg:#0E1424; --surface:#172036; --surface2:#1F2B47; --ink:#E8EEFF; --ink2:#A7B4D2; --line:#2C3C60;
+    --green:#46D993; --green-soft:#16382C; --rose:#FF84B1; --rose-soft:#3D1D2D; --on-accent:#0E1424;
+    --good:#46D993; --good-bg:#14352A; --bad:#FF9D8F; --bad-bg:#3A1D1A;
+    --pad-red:#F0686B; --pad-blue:#6E86F0; --pad-yellow:#F2BC2F; --pad-green:#43C183; --on-pad:#0E1424;
+    color-scheme:dark;
+  }
+}
+:root[data-theme="dark"]{
+  --bg:#0E1424; --surface:#172036; --surface2:#1F2B47; --ink:#E8EEFF; --ink2:#A7B4D2; --line:#2C3C60;
+  --green:#46D993; --green-soft:#16382C; --rose:#FF84B1; --rose-soft:#3D1D2D; --on-accent:#0E1424;
+  --good:#46D993; --good-bg:#14352A; --bad:#FF9D8F; --bad-bg:#3A1D1A;
+  --pad-red:#F0686B; --pad-blue:#6E86F0; --pad-yellow:#F2BC2F; --pad-green:#43C183; --on-pad:#0E1424;
+  color-scheme:dark;
+}
+#app[data-who="vardaan"]{--accent:var(--green);--accent-soft:var(--green-soft)}
+#app[data-who="vedika"]{--accent:var(--rose);--accent-soft:var(--rose-soft)}
+
+*{box-sizing:border-box}
+body{
+  background:var(--bg);color:var(--ink);font:400 17px/1.45 var(--font-body);
+  padding-block:10px 36px;
+  padding-left:max(16px,env(safe-area-inset-left,0px));
+  padding-right:max(16px,env(safe-area-inset-right,0px));
+}
+button{font:inherit;color:inherit;cursor:pointer;-webkit-tap-highlight-color:transparent}
+:focus-visible{outline:3px solid var(--ink);outline-offset:3px}
+#screen:focus{outline:none}
+p,h2,h3{margin:0}
+.app{max-width:560px;margin:0 auto;display:flex;flex-direction:column;gap:18px}
+
+.bar-top{display:flex;align-items:center;justify-content:space-between;gap:12px}
+.brand{display:flex;align-items:center;gap:10px;margin:0;font:800 26px/1 var(--font-display)}
+.mark{width:36px;height:36px;border-radius:11px;background:var(--accent);display:grid;place-items:center}
+.mark svg{width:21px;height:21px;fill:var(--on-accent)}
+.snd{min-height:44px;padding:0 14px;border-radius:12px;border:2px solid var(--line);background:var(--surface);font-weight:700;font-size:15px}
+
+.eyebrow{font-size:13px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:var(--ink2)}
+.btn{min-height:56px;padding:0 22px;border-radius:14px;border:2px solid var(--line);background:var(--surface);font:800 20px/1 var(--font-display)}
+.btn.primary{background:var(--accent);border-color:var(--accent);color:var(--on-accent)}
+.btn.big{width:100%;min-height:66px;font-size:25px}
+.ghost{min-height:44px;padding:0 14px;border-radius:12px;border:2px solid var(--line);background:transparent;font-weight:700}
+
+.who{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.whobtn{display:flex;flex-direction:column;align-items:flex-start;gap:2px;padding:12px 16px;border-radius:16px;border:2px solid var(--line);background:var(--surface);text-align:left}
+.wn{font:800 24px/1.1 var(--font-display)}
+.ws{font-size:14px;color:var(--ink2)}
+.whobtn[aria-selected="true"] .ws{color:inherit;opacity:.9}
+.whobtn[data-v="vardaan"][aria-selected="true"]{background:var(--green);border-color:var(--green);color:var(--on-accent)}
+.whobtn[data-v="vedika"][aria-selected="true"]{background:var(--rose);border-color:var(--rose);color:var(--on-accent)}
+
+.goal{display:grid;grid-template-columns:1fr auto;gap:6px 14px;align-items:center;padding:14px 16px;border-radius:18px;background:var(--surface);border:2px solid var(--line)}
+.goal .gtxt{font:800 21px/1.2 var(--font-display)}
+.goal .streak{grid-column:1/-1;color:var(--ink2);font-size:15px}
+.dots3{display:flex;gap:8px}
+.dots3 i{width:22px;height:22px;border-radius:50%;border:3px solid var(--line);background:transparent}
+.dots3 i.on{background:var(--accent);border-color:var(--accent)}
+
+.list{display:flex;flex-direction:column;gap:10px}
+.sechead{font:800 20px/1.2 var(--font-display);margin-top:4px}
+.sechead.muted{color:var(--ink2);font-size:17px;margin-top:10px}
+.gcard{display:grid;grid-template-columns:auto 1fr auto;align-items:center;gap:14px;width:100%;padding:12px 14px;border-radius:18px;border:2px solid var(--line);background:var(--surface);text-align:left}
+.gcard.other{opacity:.85}
+.tile{width:58px;height:58px;border-radius:14px;background:var(--accent-soft);color:var(--accent);display:grid;place-items:center;font:800 19px/1 var(--font-display);text-align:center}
+.tile svg{width:30px;height:30px;fill:var(--accent)}
+.gtext{display:flex;flex-direction:column;min-width:0}
+.gtext b{font:800 21px/1.15 var(--font-display)}
+.gtext small{font-size:15px;color:var(--ink2)}
+.gbest{text-align:right;font-size:12px;line-height:1.2;color:var(--ink2);text-transform:uppercase;letter-spacing:.06em}
+.gbest b{display:block;font:800 18px/1.2 var(--font-display);color:var(--ink);letter-spacing:0;text-transform:none}
+
+.back{align-self:flex-start}
+.title2{font:800 32px/1.1 var(--font-display)}
+.tip{padding:14px 16px;border-radius:16px;background:var(--accent-soft);display:flex;flex-direction:column;gap:4px}
+.tip .eyebrow{color:var(--accent)}
+.chips{display:flex;flex-wrap:wrap;gap:8px}
+.chip{min-height:50px;padding:0 16px;border-radius:14px;border:2px solid var(--line);background:var(--surface);font:800 18px/1 var(--font-display)}
+.chip[aria-pressed="true"]{background:var(--accent);border-color:var(--accent);color:var(--on-accent)}
+.lvdesc{color:var(--ink2);font-size:15px}
+.bestline{display:flex;justify-content:space-between;gap:10px;padding:12px 16px;border-radius:14px;border:2px solid var(--line);background:var(--surface);font-weight:700}
+
+.qhead{display:grid;grid-template-columns:auto 1fr auto;align-items:center;gap:12px}
+.pcount{font:800 20px/1 var(--font-display);text-align:center}
+.timer{font:800 20px/1 var(--font-display);font-variant-numeric:tabular-nums;color:var(--ink2);min-width:56px;text-align:right}
+.meter{height:10px;border-radius:5px;background:var(--surface2);overflow:hidden}
+.meter i{display:block;height:100%;background:var(--accent);border-radius:5px;transition:width .25s}
+.qcard{min-height:200px;padding:20px 16px;border-radius:22px;background:var(--surface);border:2px solid var(--line);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:14px;text-align:center}
+.qprompt{font:800 clamp(24px,6.4vw,32px)/1.25 var(--font-display);text-wrap:balance}
+.eq{font:800 clamp(36px,11vw,56px)/1.1 var(--font-display);font-variant-numeric:tabular-nums;letter-spacing:.02em}
+.seq{display:flex;flex-wrap:wrap;gap:8px;justify-content:center}
+.seq span{min-width:52px;padding:6px 10px;border-radius:12px;background:var(--surface2);font:800 clamp(26px,8vw,36px)/1.2 var(--font-display);font-variant-numeric:tabular-nums}
+.seq span.blank,.word .blank{background:var(--accent-soft);color:var(--accent);border:2px dashed var(--accent)}
+.clue{font-size:18px;color:var(--ink2)}
+.word{display:flex;gap:8px;justify-content:center}
+.word span{min-width:48px;padding:4px 8px;border-radius:12px;background:var(--surface2);font:800 clamp(30px,9vw,42px)/1.2 var(--font-display)}
+.dots{display:grid;grid-template-columns:repeat(5,1fr);gap:8px;width:100%;max-width:340px}
+.cell{aspect-ratio:1;display:grid;place-items:center}
+.cell svg{width:76%;height:76%;fill:var(--accent)}
+.bigshape{width:130px;height:130px;fill:var(--accent)}
+
+.opts{display:grid;gap:10px}
+.opts.c3{grid-template-columns:repeat(3,1fr)}
+.opts.c2,.opts.c4{grid-template-columns:repeat(2,1fr)}
+.opt{min-height:74px;padding:6px 10px;border-radius:16px;border:2px solid var(--line);background:var(--surface);font:800 clamp(22px,6.5vw,30px)/1.1 var(--font-display)}
+.opt.ok,.ansbox.ok{background:var(--good-bg);border-color:var(--good);color:var(--good)}
+.opt.bad,.ansbox.bad{background:var(--bad-bg);border-color:var(--bad);color:var(--bad)}
+.ansbox{min-height:68px;border-radius:16px;border:2px dashed var(--line);background:var(--surface);display:grid;place-items:center;font:800 40px/1 var(--font-display);font-variant-numeric:tabular-nums}
+.keypad{display:grid;grid-template-columns:repeat(3,1fr);gap:8px}
+.key{min-height:60px;border-radius:14px;border:2px solid var(--line);background:var(--surface);font:800 26px/1 var(--font-display)}
+.key.go{background:var(--accent);border-color:var(--accent);color:var(--on-accent);font-size:20px}
+.key.sm{font-size:18px}
+.fb:empty{display:none}
+.fb{padding:14px 16px;border-radius:16px;display:flex;flex-direction:column;gap:8px}
+.fb.ok{background:var(--good-bg);color:var(--good);font-weight:700;font-size:19px}
+.fb.bad{background:var(--bad-bg);color:var(--ink)}
+.fb.bad b{color:var(--bad);font-size:20px}
+
+.result{display:flex;flex-direction:column;align-items:center;gap:14px;text-align:center}
+.stars{display:flex;gap:8px;justify-content:center}
+.stars svg{width:58px;height:58px;fill:var(--surface2);stroke:var(--line);stroke-width:3}
+.stars svg.on{fill:var(--pad-yellow);stroke:var(--pad-yellow)}
+.score{font:800 64px/1 var(--font-display);font-variant-numeric:tabular-nums}
+.newbest{padding:6px 14px;border-radius:999px;background:var(--accent);color:var(--on-accent);font:800 17px/1.2 var(--font-display)}
+.row2{display:grid;grid-template-columns:1fr 1fr;gap:10px;width:100%}
+
+.status{font:800 24px/1.2 var(--font-display);text-align:center;min-height:30px}
+.pads{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+.pad{aspect-ratio:1;border:0;border-radius:22px;background:var(--pc);display:grid;place-items:center;opacity:.92;transition:filter .1s,transform .1s}
+.pad svg{width:46%;height:46%;fill:var(--on-pad)}
+.pad[data-c="0"]{--pc:var(--pad-red)}
+.pad[data-c="1"]{--pc:var(--pad-blue)}
+.pad[data-c="2"]{--pc:var(--pad-yellow);--on-pad:#1A1400}
+.pad[data-c="3"]{--pc:var(--pad-green)}
+.pad.wait{opacity:.55}
+.pad.lit{opacity:1;filter:brightness(1.3);transform:scale(.97);outline:6px solid var(--ink);outline-offset:-6px}
+.foot{font-size:13px;color:var(--ink2);text-align:center}
+.tools{display:flex;flex-wrap:wrap;gap:8px;margin-top:6px}
+.badge{padding:8px 12px;border-radius:999px;background:var(--accent-soft);color:var(--ink);font-weight:700;font-size:15px;border:2px solid var(--accent)}
+.hi{display:block;font:800 clamp(34px,10vw,48px)/1.2 var(--font-body)}
+.qprompt .clue{display:block}
+.emoji{font-size:84px;line-height:1}
+.swatch{width:120px;height:120px;color:var(--ink)}
+.opts.c1{grid-template-columns:1fr}
+.clock{width:min(220px,62vw);height:auto}
+.clock .face{fill:var(--surface);stroke:var(--ink);stroke-width:4}
+.clock text{fill:var(--ink);font:800 12px var(--font-display);text-anchor:middle;dominant-baseline:central}
+.clock line{stroke-linecap:round}
+.clock .hh{stroke:var(--ink);stroke-width:7}
+.clock .mh{stroke:var(--accent);stroke-width:4}
+.clock .pin{fill:var(--ink)}
+.cert{padding:24px 16px;border-radius:22px;border:6px double var(--accent);background:var(--surface);text-align:center;display:flex;flex-direction:column;align-items:center;gap:10px}
+.cert .score{font-size:44px}
+.certname{font:800 40px/1.1 var(--font-display);color:var(--accent)}
+.cert .stars svg{width:44px;height:44px}
+.pcard{padding:14px 16px;border-radius:18px;background:var(--surface);border:2px solid var(--line);display:flex;flex-direction:column;gap:8px}
+.pcard h3{font:800 24px/1.1 var(--font-display)}
+.pcard h3 small{font:400 15px var(--font-body);color:var(--ink2)}
+.pc-vardaan h3{color:var(--green)}
+.pc-vedika h3{color:var(--rose)}
+.prow{display:flex;justify-content:space-between;gap:10px;font-size:16px;border-top:1px solid var(--line);padding-top:6px}
+.prow span{min-width:0}
+.weak{padding:10px 12px;border-radius:12px;background:var(--bad-bg);color:var(--bad);font-weight:700}
+@media (prefers-reduced-motion:reduce){.pad,.meter i{transition:none}.pad.lit{transform:none}}
+.tutorlink{align-self:flex-start;display:inline-flex;align-items:center;text-decoration:none;color:var(--ink)}
+</style>
+
+
+</head>
+<body>
+<div class="app" id="app" data-who="vardaan">
+  <a class="ghost tutorlink" href="/">← Apna Tutor</a>
+  <header class="bar-top">
+    <h1 class="brand"><span class="mark" aria-hidden="true"><svg viewBox="0 0 100 100"><polygon points="50,6 61,38 95,38 67,58 78,92 50,71 22,92 33,58 5,38 39,38"/></svg></span>Mini Champs</h1>
+    <button class="snd" id="snd" type="button" aria-pressed="true">Awaaz: On</button>
+  </header>
+  <main id="screen" tabindex="-1"></main>
+  <p class="foot">Scores sirf is phone ke browser mein save hote hain.</p>
+</div>
+
+<script>
+(function(){
+'use strict';
+var N=10;
+var rnd=function(a,b){return a+Math.floor(Math.random()*(b-a+1));};
+var pick=function(a){return a[Math.floor(Math.random()*a.length)];};
+var shuffle=function(a){a=a.slice();for(var i=a.length-1;i>0;i--){var j=Math.floor(Math.random()*(i+1));var t=a[i];a[i]=a[j];a[j]=t;}return a;};
+var range=function(a,b){var r=[];for(var i=a;i<=b;i++)r.push(i);return r;};
+
+function numOptions(c,count,min,max){
+  var set=[c];
+  var near=shuffle([c-1,c+1,c-2,c+2,c-3,c+3,c-4,c+4]).filter(function(x){return x>=min&&x<=max;});
+  near.forEach(function(x){if(set.length<count&&set.indexOf(x)<0)set.push(x);});
+  var g=0;while(set.length<count&&g++<60){var x=rnd(min,max);if(set.indexOf(x)<0)set.push(x);}
+  return shuffle(set);
+}
+function letterOptions(c,count){
+  var all='ABCDEFGHIJKLMNOPQRSTUVWXYZ'.split('');var set=[c];
+  shuffle(all).forEach(function(l){if(set.length<count&&set.indexOf(l)<0)set.push(l);});
+  return shuffle(set);
+}
+var SHAPES={
+  circle:{name:'Circle',svg:'<circle cx="50" cy="50" r="38"/>',fact:'Circle gol hota hai. Isme koi kona nahi hota.'},
+  square:{name:'Square',svg:'<rect x="14" y="14" width="72" height="72" rx="3"/>',fact:'Square ki 4 sides barabar hoti hain aur 4 kone hote hain.'},
+  triangle:{name:'Triangle',svg:'<polygon points="50,10 92,86 8,86"/>',fact:'Triangle ki 3 sides aur 3 kone hote hain.'},
+  rectangle:{name:'Rectangle',svg:'<rect x="6" y="28" width="88" height="44" rx="3"/>',fact:'Rectangle ki 4 sides hoti hain: 2 lambi aur 2 chhoti.'},
+  star:{name:'Star',svg:'<polygon points="50,6 61,38 95,38 67,58 78,92 50,71 22,92 33,58 5,38 39,38"/>',fact:'Star mein 5 nok hoti hain.'}
+};
+function shapeSVG(id,cls){return '<svg viewBox="0 0 100 100" class="'+(cls||'shape')+'" aria-hidden="true">'+SHAPES[id].svg+'</svg>';}
+function choiceOpts(arr){return arr.map(function(o){return {label:String(o),value:String(o)};});}
+
+/* ---------- question generators ---------- */
+function genCount(){
+  var n=rnd(1,10),sh=pick(['star','circle','triangle','square']);
+  var cells=shuffle(range(0,9)).slice(0,n),h='';
+  for(var i=0;i<10;i++)h+=cells.indexOf(i)>=0?'<span class="cell">'+shapeSVG(sh)+'</span>':'<span class="cell"></span>';
+  return {kind:'choice',visual:'<div class="dots">'+h+'</div>',prompt:'Kitne hain? Ginke batao.',
+    options:choiceOpts(numOptions(n,3,1,10)),answer:String(n),
+    explain:'Ek-ek karke ginte hain: '+range(1,n).join(', ')+'. Total '+n+' hain.'};
+}
+var LETTER_WORDS=[['Apple','A'],['Ball','B'],['Cat','C'],['Dog','D'],['Egg','E'],['Fish','F'],['Goat','G'],['Hen','H'],['Ink','I'],['Jug','J'],['Kite','K'],['Lion','L'],['Moon','M'],['Nest','N'],['Owl','O'],['Pen','P'],['Queen','Q'],['Rat','R'],['Sun','S'],['Tree','T'],['Umbrella','U'],['Van','V'],['Web','W'],['Yak','Y'],['Zebra','Z']];
+function genLetters(){
+  var p=pick(LETTER_WORDS);
+  return {kind:'choice',visual:'',prompt:'<b>'+p[0]+'</b> ka pehla letter kaun sa hai?',
+    options:choiceOpts(letterOptions(p[1],3)),answer:p[1],
+    explain:p[1]+' for '+p[0]+'. '+p[0]+' ka pehla letter '+p[1]+' hai.'};
+}
+function genShapes(){
+  var ids=Object.keys(SHAPES),id=pick(ids);
+  var names=shuffle(ids.filter(function(x){return x!==id;})).slice(0,2).concat([id]).map(function(x){return SHAPES[x].name;});
+  return {kind:'choice',visual:shapeSVG(id,'bigshape'),prompt:'Ye kaunsi shape hai?',
+    options:choiceOpts(shuffle(names)),answer:SHAPES[id].name,explain:SHAPES[id].fact};
+}
+function genNext(){
+  var t=pick(['after','before','between']),n,ans,prompt,explain;
+  if(t==='after'){n=rnd(1,19);ans=n+1;prompt='<b>'+n+'</b> ke <b>baad</b> kaun sa number aata hai?';explain=n+', '+ans+'. Ginti mein '+n+' ke baad '+ans+' aata hai.';}
+  else if(t==='before'){n=rnd(2,20);ans=n-1;prompt='<b>'+n+'</b> se <b>pehle</b> kaun sa number aata hai?';explain=ans+', '+n+'. Ginti mein '+n+' se pehle '+ans+' aata hai.';}
+  else{n=rnd(1,18);ans=n+1;prompt=n+', <b>?</b>, '+(n+2)+'<br>Beech mein kya aayega?';explain=n+', '+ans+', '+(n+2)+'. Beech mein '+ans+' aata hai.';}
+  return {kind:'choice',visual:'',prompt:prompt,options:choiceOpts(numOptions(ans,3,1,20)),answer:String(ans),explain:explain};
+}
+function genBigger(){
+  var a=rnd(1,20),b=rnd(1,20);while(b===a)b=rnd(1,20);
+  var big=Math.max(a,b),small=Math.min(a,b),askBig=Math.random()<0.5;
+  return {kind:'choice',visual:'',prompt:'Kaun sa number <b>'+(askBig?'bada':'chhota')+'</b> hai?',
+    options:choiceOpts(shuffle([a,b])),answer:String(askBig?big:small),
+    explain:big+' bada hai aur '+small+' chhota hai. Ginti mein '+small+' pehle aata hai, '+big+' baad mein.'};
+}
+function genAddSub(level){
+  var op=Math.random()<0.5?'+':'-',a=0,b=0,t1,t2,u1,u2,k;
+  if(level===1){
+    if(op==='+'){u1=rnd(0,8);u2=rnd(0,9-u1);t1=rnd(1,7);t2=rnd(1,8-t1);a=10*t1+u1;b=10*t2+u2;}
+    else{t1=rnd(2,9);u1=rnd(0,9);t2=rnd(1,t1-1);u2=rnd(0,u1);a=10*t1+u1;b=10*t2+u2;}
+  }else if(level===2){
+    if(op==='+'){for(k=0;k<300;k++){a=rnd(15,89);b=rnd(15,89);if((a%10)+(b%10)>=10&&a+b<=150)break;}}
+    else{for(k=0;k<300;k++){a=rnd(21,99);b=rnd(11,a-1);if((a%10)<(b%10)&&a>b)break;}}
+  }else{
+    if(op==='+'){a=rnd(100,899);b=rnd(10,99);}else{a=rnd(120,999);b=rnd(10,99);}
+  }
+  var ans=op==='+'?a+b:a-b,bt=b-(b%10),bo=b%10,m=op==='+'?a+bt:a-bt,sym=op==='+'?'+':'−';
+  var explain='Pehle dahai (tens), phir ikai (ones): '+a+' '+sym+' '+bt+' = '+m+', phir '+m+' '+sym+' '+bo+' = '+ans+'.';
+  return {kind:'number',visual:'',prompt:'<span class="eq">'+a+' '+sym+' '+b+' = ?</span>',answer:String(ans),explain:explain,meta:{a:a,b:b,op:op}};
+}
+var TABLE_SETS={1:[2,5,10],2:[3,4],3:[6,7,8,9],4:[2,3,4,5,6,7,8,9,10]};
+function genTables(level){
+  var t=pick(TABLE_SETS[level]||TABLE_SETS[4]),m=rnd(1,10),ans=t*m,list=[];
+  for(var i=1;i<=m;i++)list.push(t*i);
+  return {kind:'number',visual:'',prompt:'<span class="eq">'+t+' × '+m+' = ?</span>',answer:String(ans),
+    explain:t+' ko '+m+' baar jodo: '+list.join(', ')+'. Jawab '+ans+' hai.',meta:{t:t,m:m}};
+}
+function genPatterns(level){
+  var d,up=true;
+  if(level===1)d=2;else if(level===2)d=5;else if(level===3)d=10;else if(level===4)d=pick([3,4]);else{d=pick([2,5,10]);up=false;}
+  var start=up?d*rnd(0,5):d*rnd(6,12),terms=[],i;
+  for(i=0;i<5;i++)terms.push(up?start+d*i:start-d*i);
+  var miss=rnd(1,4),h='';
+  for(i=0;i<5;i++)h+=i===miss?'<span class="blank">?</span>':'<span>'+terms[i]+'</span>';
+  return {kind:'number',visual:'',prompt:'<div class="seq">'+h+'</div><p>Khali jagah mein kya aayega?</p>',answer:String(terms[miss]),
+    explain:'Har baar '+d+(up?' badhta':' ghatta')+' hai: '+terms.join(', ')+'.',meta:{terms:terms,miss:miss}};
+}
+var WORDS={
+  1:[['cat','billi'],['dog','kutta'],['sun','suraj'],['bus','bas (gaadi)'],['hen','murgi'],['pen','kalam'],['bag','jhola'],['cup','pyaala'],['hat','topi'],['pig','suar'],['box','dibba'],['fan','pankha'],['net','jaal'],['pot','bartan'],['leg','taang'],['bed','palang'],['red','laal rang'],['run','daudna'],['sit','baithna'],['egg','anda'],['cow','gaay'],['ant','cheenti'],['map','naksha'],['key','chaabi'],['sky','aasmaan']],
+  2:[['apple','seb'],['water','paani'],['house','ghar'],['tiger','sher'],['chair','kursi'],['paper','kagaz'],['green','hara rang'],['happy','khush'],['table','mez'],['mango','aam'],['plane','hawai jahaaz'],['river','nadi'],['bread','double roti'],['light','roshni'],['clock','ghadi'],['horse','ghoda'],['flower','phool'],['monkey','bandar'],['orange','santra'],['banana','kela']]
+};
+function genWords(level){
+  var p=pick(WORDS[level]||WORDS[1]),w=p[0].toUpperCase(),i=rnd(0,w.length-1),c=w.charAt(i),h='';
+  for(var k=0;k<w.length;k++)h+=k===i?'<span class="blank">_</span>':'<span>'+w.charAt(k)+'</span>';
+  return {kind:'choice',visual:'',prompt:'<span class="clue">'+p[1]+'</span><span class="word">'+h+'</span>Kaun sa letter missing hai?',
+    options:choiceOpts(letterOptions(c,4)),answer:c,explain:'Pura word: '+w+' ('+p[1]+'). Missing letter '+c+' hai.',meta:{word:w,i:i}};
+}
+
+var GAMES={
+  count:{name:'Ginti karo',blurb:'Kitne hain? Ginke batao.',tile:'1 2 3',gen:genCount,
+    tip:'Har cheez par ungli rakho aur bolo: ek, do, teen... Jo aakhri number bola, wahi total hai.'},
+  letters:{name:'Pehla letter',blurb:'Word ka pehla letter pehchano.',tile:'Aa',gen:genLetters,
+    tip:'Word ko dheere bolo: A-A-Apple. Jo awaaz pehle sunayi de, wahi pehla letter hai.'},
+  shapes:{name:'Shapes',blurb:'Circle, square, triangle...',tile:'svg:triangle',gen:genShapes,
+    tip:'Kone gino aur sides gino. Circle mein koi kona nahi hota!'},
+  next:{name:'Agla number',blurb:'Pehle, baad aur beech ka number.',tile:'5→',gen:genNext,
+    tip:'Ginti bolte jao: 1, 2, 3, 4... Jis number ke baad ya pehle poocha hai, wahan ruk jao.'},
+  bigger:{name:'Bada ya chhota',blurb:'Kaun sa number bada hai?',tile:'>',gen:genBigger,
+    tip:'Ginti mein jo number baad mein aata hai, wo bada hota hai.'},
+  addsub:{name:'Jodo aur ghatao',blurb:'Tez aur sahi hisaab.',tile:'+ −',gen:genAddSub,mode:'number',
+    levels:[{id:1,label:'Aasaan',desc:'2 digit, bina carry ya borrow ke'},{id:2,label:'Medium',desc:'carry ya borrow ke saath'},{id:3,label:'Mushkil',desc:'3 digit aur 2 digit'}],
+    tip:'Dusre number ko dahai aur ikai mein todo. 47 + 25: pehle 47 + 20 = 67, phir 67 + 5 = 72.'},
+  tables:{name:'Tables',blurb:'Pahade yaad karo.',tile:'×',gen:genTables,mode:'number',
+    levels:[{id:1,label:'2, 5, 10',desc:'Sabse aasaan tables'},{id:2,label:'3, 4',desc:'Thode aur tables'},{id:3,label:'6 se 9',desc:'Mushkil tables'},{id:4,label:'Sab tables',desc:'2 se 10 tak mix'}],
+    tip:'Table ek jaisa jodna hai. 3 ka table: 3, 6, 9, 12... Har baar 3 badhta hai.'},
+  patterns:{name:'Pattern',blurb:'Khali jagah bharo.',tile:'2 4 6',gen:genPatterns,mode:'number',
+    levels:[{id:1,label:'2 ka',desc:'2, 4, 6, 8...'},{id:2,label:'5 ka',desc:'5, 10, 15...'},{id:3,label:'10 ka',desc:'10, 20, 30...'},{id:4,label:'3 ya 4 ka',desc:'3, 6, 9... ya 4, 8, 12...'},{id:5,label:'Ulta',desc:'Ghatte hue numbers'}],
+    tip:'Do numbers ka fark dekho. Wahi fark har baar judta (ya ghatta) hai.'},
+  words:{name:'Missing letter',blurb:'Word poora karo.',tile:'C_T',gen:genWords,
+    levels:[{id:1,label:'3 letter',desc:'Chhote words'},{id:2,label:'Bade word',desc:'5 letter ke words'}],
+    tip:'Hindi clue padho, English word socho, aur har letter ko bolo. Kaun sa letter chhoot gaya?'},
+  memory:{name:'Yaad rakho',blurb:'Colours ka order yaad rakho.',tile:'svg:memory',memory:true,
+    levels:[{id:1,label:'Aaram se',desc:'Dheeme chalta hai'},{id:2,label:'Tez',desc:'Thoda fast'}],
+    tip:'Colours ko man mein bolo: laal, neela, peela... Pehle dekho, phir wahi order dabao.'}
+};
+/* ---------- extra generators ---------- */
+function seqHTML(arr,miss){return '<div class="seq">'+arr.map(function(x,i){return i===miss?'<span class="blank">?</span>':'<span>'+x+'</span>';}).join('')+'</div>';}
+function pad2(n){return (n<10?'0':'')+n;}
+function genCount100(level){
+  var miss=rnd(1,3),max=level===1?50:100,s,arr;
+  if(level===3){s=rnd(5,20);arr=[s,s-1,s-2,s-3];}else{s=rnd(1,max-3);arr=[s,s+1,s+2,s+3];}
+  var ans=arr[miss];
+  return {kind:'choice',visual:'',prompt:seqHTML(arr,miss)+'<p>Khali jagah mein kaun sa number aayega?</p>',
+    options:choiceOpts(numOptions(ans,3,level===3?0:1,level===3?21:max)),answer:String(ans),
+    explain:(level===3?'Ulti ginti mein har baar 1 kam hota hai: ':'Ginti mein har baar 1 badhta hai: ')+arr.join(', ')+'.'};
+}
+function genOrder(level){
+  var lo=level===3?100:1,hi=level===1?20:level===2?100:999,set=[];
+  while(set.length<3){var x=rnd(lo,hi);if(set.indexOf(x)<0)set.push(x);}
+  var big=Math.random()<0.5,sorted=set.slice().sort(function(a,b){return a-b;});
+  return {kind:'choice',visual:'',prompt:'In teeno mein kaun sa number sabse <b>'+(big?'bada':'chhota')+'</b> hai?',
+    options:choiceOpts(set),answer:String(big?sorted[2]:sorted[0]),
+    explain:'Chhote se bade order: '+sorted.join(', ')+'. Sabse '+(big?'bada '+sorted[2]:'chhota '+sorted[0])+' hai.'};
+}
+function genTiny(level){
+  var add=level===1?true:level===2?false:Math.random()<0.5,mx=level===3?20:10,a,b,ans,l=[],i,ex;
+  if(add){a=rnd(1,mx-1);b=rnd(1,mx-a);ans=a+b;for(i=1;i<=b;i++)l.push(a+i);ex=a+' par ruko, phir '+b+' aage ginti: '+l.join(', ')+'. Jawab '+ans+'.';}
+  else{a=rnd(2,mx);b=rnd(1,a-1);ans=a-b;for(i=1;i<=b;i++)l.push(a-i);ex=a+' se '+b+' peeche ginti: '+l.join(', ')+'. Jawab '+ans+'.';}
+  return {kind:'choice',visual:'',prompt:'<span class="eq">'+a+' '+(add?'+':'−')+' '+b+' = ?</span>',
+    options:choiceOpts(numOptions(ans,3,0,20)),answer:String(ans),explain:ex,meta:{a:a,b:b,add:add}};
+}
+var COLORS=[['Laal','Red','#D9373B'],['Neela','Blue','#2F55D4'],['Peela','Yellow','#F5C400'],['Hara','Green','#2E9E5B'],['Narangi','Orange','#F28A1E'],['Gulabi','Pink','#F06FA6'],['Jamuni','Purple','#7A3FB5'],['Kala','Black','#111111'],['Bhura','Brown','#8B5A2B']];
+function genColors(){
+  var c=pick(COLORS),set=shuffle(COLORS.filter(function(x){return x!==c;})).slice(0,2).concat([c]).map(function(x){return x[0]+' ('+x[1]+')';});
+  return {kind:'choice',visual:'<svg class="swatch" viewBox="0 0 100 100" aria-hidden="true"><circle cx="50" cy="50" r="46" fill="'+c[2]+'" stroke="currentColor" stroke-width="4"/></svg>',
+    prompt:'Ye kaun sa rang hai?',options:choiceOpts(shuffle(set)),answer:c[0]+' ('+c[1]+')',explain:'Ye '+c[0]+' rang hai. English mein '+c[1]+'.'};
+}
+var ANIMALS=[['🐘','Elephant','haathi'],['🐅','Tiger','sher'],['🐒','Monkey','bandar'],['🐄','Cow','gaay'],['🐶','Dog','kutta'],['🐱','Cat','billi'],['🐟','Fish','machhli'],['🐦','Bird','chidiya'],['🐴','Horse','ghoda'],['🐢','Turtle','kachhua'],['🍎','Apple','seb'],['🍌','Banana','kela'],['🍇','Grapes','angoor'],['🍊','Orange','santra'],['🥭','Mango','aam'],['🍉','Watermelon','tarbooj'],['🍓','Strawberry','strawberry'],['🍅','Tomato','tamatar'],['🥕','Carrot','gajar']];
+function genAnimals(){
+  var a=pick(ANIMALS),set=shuffle(ANIMALS.filter(function(x){return x!==a;})).slice(0,2).concat([a]).map(function(x){return x[1];});
+  return {kind:'choice',visual:'<div class="emoji" aria-hidden="true">'+a[0]+'</div>',prompt:'Ye kya hai?',
+    options:choiceOpts(shuffle(set)),answer:a[1],explain:a[1]+' ko Hindi mein '+a[2]+' kehte hain.'};
+}
+var HINDI={1:[['अनार','pomegranate','अ'],['आम','mango','आ'],['इमली','tamarind','इ'],['ईख','sugarcane','ई'],['उल्लू','owl','उ'],['ऊन','wool','ऊ'],['एक','one','ए'],['ओखली','mortar','ओ']],
+2:[['कमल','lotus','क'],['खरगोश','rabbit','ख'],['गमला','flower pot','ग'],['घर','house','घ'],['चम्मच','spoon','च'],['छतरी','umbrella','छ'],['जहाज','ship','ज'],['झंडा','flag','झ'],['टमाटर','tomato','ट'],['डमरू','damru','ड'],['तरबूज','watermelon','त'],['थाली','plate','थ'],['दवात','inkpot','द'],['धनुष','bow','ध'],['नल','tap','न'],['पतंग','kite','प'],['फल','fruit','फ'],['बकरी','goat','ब'],['भालू','bear','भ'],['मछली','fish','म'],['रस्सी','rope','र'],['लड्डू','laddoo','ल'],['शेर','lion','श'],['सेब','apple','स'],['हाथी','elephant','ह']]};
+function genHindi(level){
+  var list=HINDI[level]||HINDI[1],p=pick(list),pool=list.map(function(x){return x[2];});
+  var opts=[p[2]];shuffle(pool).forEach(function(l){if(opts.length<3&&opts.indexOf(l)<0)opts.push(l);});
+  return {kind:'choice',visual:'',prompt:'<span class="hi">'+p[0]+'</span><span class="clue">('+p[1]+')</span>Is word ka pehla akshar kaun sa hai?',
+    options:choiceOpts(shuffle(opts)),answer:p[2],explain:p[0]+' ka pehla akshar '+p[2]+' hai.'};
+}
+function genMoney(level){
+  var dens=level===1?[1,2,5,10]:[1,2,5,10,20,50],k=level===1?2:3,ds=shuffle(dens).slice(0,k).sort(function(a,b){return b-a;});
+  var parts=[],lines=[],total=0;
+  ds.forEach(function(d){var c=rnd(1,4);parts.push('<span>₹'+d+' × '+c+'</span>');lines.push('₹'+d+' × '+c+' = '+d*c);total+=d*c;});
+  return {kind:'number',visual:'',prompt:'<div class="seq">'+parts.join('')+'</div><p>Total kitne rupaye?</p>',answer:String(total),
+    explain:lines.join(', ')+'. Sab jodo: '+total+' rupaye.',meta:{total:total}};
+}
+function clockSVG(h,m){
+  var s='<svg class="clock" viewBox="0 0 200 200" role="img" aria-label="Analog ghadi"><circle class="face" cx="100" cy="100" r="92"/>',n,a;
+  for(n=1;n<=12;n++){a=n*Math.PI/6;s+='<text x="'+(100+72*Math.sin(a)).toFixed(1)+'" y="'+(100-72*Math.cos(a)).toFixed(1)+'">'+n+'</text>';}
+  var ha=((h%12)+m/60)*Math.PI/6,ma=m*Math.PI/30;
+  s+='<line class="hh" x1="100" y1="100" x2="'+(100+46*Math.sin(ha)).toFixed(1)+'" y2="'+(100-46*Math.cos(ha)).toFixed(1)+'"/>';
+  s+='<line class="mh" x1="100" y1="100" x2="'+(100+70*Math.sin(ma)).toFixed(1)+'" y2="'+(100-70*Math.cos(ma)).toFixed(1)+'"/><circle class="pin" cx="100" cy="100" r="6"/></svg>';
+  return s;
+}
+function genClock(level){
+  var rm=function(){return level===1?pick([0,30]):rnd(0,11)*5;};
+  var h=rnd(1,12),m=rm(),ans=h+':'+pad2(m),set=[ans],g=0;
+  while(set.length<3&&g++<80){var t=(Math.random()<0.5?h:rnd(1,12))+':'+pad2(rm());if(set.indexOf(t)<0)set.push(t);}
+  var mp=m/5||12;
+  return {kind:'choice',visual:clockSVG(h,m),prompt:'Ghadi mein kya time hua hai?',options:choiceOpts(shuffle(set)),answer:ans,
+    explain:'Chhota haath ghanta batata hai: '+h+'. Bada haath '+mp+' par hai, matlab '+m+' minute'+(m===0?' (poora ghanta)':'')+' (har number 5 minute). Time '+ans+'.',meta:{h:h,m:m}};
+}
+function genMental(level){
+  var a,b,ans,ex,bt,bo,sym,op;
+  if(level===1){a=rnd(11,89);b=rnd(11,89);ans=a+b;bt=b-b%10;bo=b%10;sym='+';op='+';ex=a+' + '+bt+' = '+(a+bt)+', phir '+(a+bt)+' + '+bo+' = '+ans+'.';}
+  else if(level===2){a=rnd(30,99);b=rnd(11,a-5);ans=a-b;bt=b-b%10;bo=b%10;sym='−';op='-';ex=a+' − '+bt+' = '+(a-bt)+', phir '+(a-bt)+' − '+bo+' = '+ans+'.';}
+  else{a=rnd(12,25);b=rnd(2,9);ans=a*b;var tn=a-a%10,on=a%10;sym='×';op='*';ex=tn+' × '+b+' = '+tn*b+', '+on+' × '+b+' = '+on*b+'. Dono jodo: '+ans+'.';}
+  return {kind:'number',visual:'',prompt:'<span class="eq">'+a+' '+sym+' '+b+' = ?</span>',answer:String(ans),explain:ex,meta:{a:a,b:b,op:op}};
+}
+function genDivide(level){
+  var t=pick(TABLE_SETS[level]||TABLE_SETS[4]),m=rnd(1,10),p=t*m,list=[];
+  for(var i=1;i<=m;i++)list.push(t*i);
+  return {kind:'number',visual:'',prompt:'<span class="eq">'+p+' ÷ '+t+' = ?</span>',answer:String(m),
+    explain:t+' ko kitni baar jodein to '+p+' bane? '+list.join(', ')+' — '+m+' baar. Jawab '+m+'.',meta:{t:t,m:m,p:p}};
+}
+var SPELLW={1:WORDS[2],2:[['school','vidyalaya'],['friend','dost'],['because','kyunki'],['people','log'],['beautiful','sundar'],['library','pustakalaya'],['together','saath-saath'],['family','parivaar'],['morning','subah'],['teacher','adhyapak'],['brother','bhai'],['sister','behen'],['garden','bagicha'],['animal','jaanwar'],['yellow','peela rang'],['mother','maa']]};
+function misspell(w){
+  var out=[],i,v='aeiou',idx=[];
+  i=rnd(1,w.length-2);out.push(w.slice(0,i)+w.slice(i+1));
+  i=rnd(0,w.length-2);out.push(w.slice(0,i)+w.charAt(i+1)+w.charAt(i)+w.slice(i+2));
+  i=rnd(0,w.length-1);out.push(w.slice(0,i+1)+w.charAt(i)+w.slice(i));
+  for(i=0;i<w.length;i++)if(v.indexOf(w.charAt(i))>=0)idx.push(i);
+  if(idx.length){i=pick(idx);var nv=pick(v.split('').filter(function(x){return x!==w.charAt(i);}));out.push(w.slice(0,i)+nv+w.slice(i+1));}
+  out.push(w+'e');out.push(w.slice(0,-1));
+  var seen={},res=[];
+  shuffle(out).forEach(function(x){if(x!==w&&!seen[x]){seen[x]=1;res.push(x);}});
+  return res.slice(0,2);
+}
+function genSpell(level){
+  var p=pick(SPELLW[level]||SPELLW[1]),w=p[0];
+  return {kind:'choice',visual:'',prompt:'<span class="clue">'+p[1]+'</span>Iski sahi spelling kaun si hai?',
+    options:choiceOpts(shuffle([w].concat(misspell(w)))),answer:w,explain:'Sahi spelling: '+w.toUpperCase().split('').join('-')+'.'};
+}
+GAMES.count100={name:'Ginti 100 tak',blurb:'Khali number bharo.',tile:'100',gen:genCount100,
+  levels:[{id:1,label:'50 tak',desc:'1 se 50 tak ki ginti'},{id:2,label:'100 tak',desc:'1 se 100 tak ki ginti'},{id:3,label:'Ulti ginti',desc:'20 se 1 tak ulti ginti'}],
+  tip:'Ginti bolte jao aur dekho kaun sa number chhoot gaya. Ulti ginti mein har baar 1 kam hota hai.'};
+GAMES.order={name:'Bada chhota order',blurb:'Teen numbers mein sabse bada ya chhota.',tile:'1<2',gen:genOrder,
+  levels:[{id:1,label:'20 tak',desc:'1 se 20'},{id:2,label:'100 tak',desc:'1 se 100'},{id:3,label:'3 digit',desc:'100 se 999'}],
+  tip:'Pehle digits ki ginti dekho. Jiske zyada digits, wo bada. Barabar digits mein pehla digit dekho.'};
+GAMES.tiny={name:'Chhota jod-ghatao',blurb:'Ungliyon par jodo aur ghatao.',tile:'2+3',gen:genTiny,
+  levels:[{id:1,label:'Jodna',desc:'10 tak jodna'},{id:2,label:'Ghatana',desc:'10 tak ghatana'},{id:3,label:'Mix',desc:'20 tak jodna aur ghatana'}],
+  tip:'Pehle number par ruko, phir ungli se aage (jodna) ya peeche (ghatana) ginti karo.'};
+GAMES.colors={name:'Rang pehchano',blurb:'Kaun sa rang hai?',tile:'Rang',gen:genColors,tip:'Rang dekho aur uska Hindi aur English naam bolo.'};
+GAMES.animals={name:'Jaanwar aur phal',blurb:'Ye kya hai? English naam batao.',tile:'🐘',gen:genAnimals,tip:'Tasveer dekho aur English naam bolo. Jaise 🍎 = Apple.'};
+GAMES.hindi={name:'Hindi akshar',blurb:'Word ka pehla akshar pehchano.',tile:'अ आ',gen:genHindi,
+  levels:[{id:1,label:'Swar',desc:'अ आ इ ई उ ऊ ए ओ'},{id:2,label:'Vyanjan',desc:'क ख ग घ ...'}],
+  tip:'Word ko dheere bolo. Jo awaaz sabse pehle sunayi de, wahi pehla akshar hai.'};
+GAMES.mental={name:'Dimaagi hisaab',blurb:'Dimaag mein tez calculation.',tile:'12×4',gen:genMental,mode:'number',
+  levels:[{id:1,label:'Do digit jod',desc:'Do digit + do digit'},{id:2,label:'Do digit ghatao',desc:'Do digit − do digit'},{id:3,label:'Gunaa',desc:'12 se 25 ko 2 se 9 se gunaa'}],
+  tip:'Number ko todo: 13 × 4 = (10 × 4) + (3 × 4) = 40 + 12 = 52.'};
+GAMES.divide={name:'Bhaag',blurb:'Table ulta karke bhaag karo.',tile:'÷',gen:genDivide,mode:'number',
+  levels:[{id:1,label:'2, 5, 10',desc:'Sabse aasaan'},{id:2,label:'3, 4',desc:'Thoda aur'},{id:3,label:'6 se 9',desc:'Mushkil'},{id:4,label:'Sab',desc:'Sab tables mix'}],
+  tip:'12 ÷ 3: sochho 3 ke table mein 12 kab aata hai? 3, 6, 9, 12 — 4 baar. To jawab 4.'};
+GAMES.spell={name:'Sahi spelling',blurb:'Sahi spelling chuno.',tile:'Abc',gen:genSpell,
+  levels:[{id:1,label:'Aasaan',desc:'Roz ke words'},{id:2,label:'Mushkil',desc:'Bade words'}],
+  tip:'Word ko tukdon mein bolo aur har letter dekho. Jo spelling dekhne mein sahi lage, wahi chuno.'};
+GAMES.money={name:'Paise',blurb:'Note aur sikke jodo.',tile:'₹',gen:genMoney,mode:'number',
+  levels:[{id:1,label:'Aasaan',desc:'₹1, 2, 5, 10'},{id:2,label:'Mushkil',desc:'₹20 aur ₹50 bhi'}],
+  tip:'Har note ya sikke ko uski ginti se gunaa karo, phir sab jodo. ₹5 × 3 = 15.'};
+GAMES.clock={name:'Ghadi dekho',blurb:'Time batao.',tile:'12:00',gen:genClock,
+  levels:[{id:1,label:'Poora aur aadha',desc:'3:00 ya 3:30'},{id:2,label:'5 minute',desc:'Har 5 minute'}],
+  tip:'Chhota haath ghanta batata hai, bada haath minute. Bada haath 6 par ho to 30 minute.'};
+
+function makeQuestions(g,level,n){
+  var out=[],seen={},tries=0;
+  while(out.length<n){
+    var q=GAMES[g].gen(level);tries++;
+    var sk=q.prompt+'|'+q.answer;
+    q.key=sk+'|'+(q.options?q.options.map(function(x){return x.value;}).join(','):'');
+    if(seen[sk]&&tries<80)continue;
+    seen[sk]=1;out.push(q);
+  }
+  return out;
+}
+if(typeof document==='undefined'){globalThis.__MC={GAMES:GAMES,makeQuestions:makeQuestions,N:N};return;}
+
+/* ---------- profiles, storage ---------- */
+var KEY='minichamps.v1';
+var PROFILE={
+  vardaan:{name:'Vardaan',sub:'Nursery',games:['count','tiny','letters','hindi','shapes','colors','animals','next','count100','bigger','order','memory']},
+  vedika:{name:'Vedika',sub:'Class 2',games:['addsub','mental','tables','divide','patterns','words','spell','money','clock','order','hindi','memory']}};
+function freshP(){return {best:{},days:{},stat:{},badges:{},wrong:[],tc:0,tr:0,perf:0,s3:0,speedMax:0,voice:null};}
+function freshState(){return {v:1,who:'vardaan',sound:true,lvl:{},mode:{},p:{vardaan:freshP(),vedika:freshP()}};}
+function load(){
+  try{var j=JSON.parse(localStorage.getItem(KEY)||'null');
+    if(j&&j.v===1&&j.p&&j.p.vardaan&&j.p.vedika){
+      j.lvl=j.lvl||{};j.mode=j.mode||{};
+      ['vardaan','vedika'].forEach(function(k){var d=freshP(),p=j.p[k];Object.keys(d).forEach(function(f){if(p[f]===undefined)p[f]=d[f];});});
+      return j;}}catch(e){}
+  return freshState();
+}
+var S=load();
+function save(){try{localStorage.setItem(KEY,JSON.stringify(S));}catch(e){}}
+function voiceOn(){var v=S.p[S.who].voice;return v===null?S.who==='vardaan':!!v;}
+function keyOf(d){return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');}
+function todayKey(){return keyOf(new Date());}
+function calcStreak(st){var d=new Date(),n=0;if(!(st.days[keyOf(d)]>0))d.setDate(d.getDate()-1);
+  while(st.days[keyOf(d)]>0){n++;d.setDate(d.getDate()-1);}return n;}
+function better(a,b){return a.c>b.c||(a.c===b.c&&a.ms<b.ms);}
+function bestAny(who,g){
+  var best=null,b=S.p[who].best;
+  Object.keys(b).forEach(function(k){if(k.indexOf(g+':')===0&&k.split(':').length===2&&(!best||better(b[k],best)))best=b[k];});
+  return best;
+}
+function fmtBest(g,r){if(!r)return '—';return GAMES[g].memory?r.c+' step':r.c+'/'+N;}
+function fmtTime(ms){var s=Math.round(ms/1000);return Math.floor(s/60)+':'+String(s%60).padStart(2,'0');}
+function levelLabel(g,level){var G=GAMES[g];if(!G.levels)return '';var l=G.levels.filter(function(x){return x.id===level;})[0];return l?l.label:'';}
+function starsOf(g,c,speed){
+  if(GAMES[g].memory)return c>=8?3:c>=5?2:c>=2?1:0;
+  if(speed)return c>=10?3:c>=6?2:c>=3?1:0;
+  return c>=9?3:c>=6?2:c>=3?1:0;
+}
+var BADGES=[['streak3','3 din ka streak'],['streak7','7 din ka streak'],['rounds10','10 rounds poore'],['c100','100 sahi jawab'],['c500','500 sahi jawab'],['perfect','Ek round mein 10/10'],['star3','3 stars mile'],['speed10','Speed: 10 sahi'],['explorer','5 alag games khele']];
+function badgeOk(id,st){
+  switch(id){
+    case 'streak3':return calcStreak(st)>=3;
+    case 'streak7':return calcStreak(st)>=7;
+    case 'rounds10':return st.tr>=10;
+    case 'c100':return st.tc>=100;
+    case 'c500':return st.tc>=500;
+    case 'perfect':return st.perf>=1;
+    case 'star3':return st.s3>=1;
+    case 'speed10':return st.speedMax>=10;
+    case 'explorer':return Object.keys(st.stat).filter(function(k){return st.stat[k].a>0;}).length>=5;
+  }
+  return false;
+}
+function checkBadges(who){
+  var st=S.p[who],nw=[];
+  BADGES.forEach(function(b){if(!st.badges[b[0]]&&badgeOk(b[0],st)){st.badges[b[0]]=todayKey();nw.push(b[1]);}});
+  return nw;
+}
+function record(who,g,level,res,speed){
+  var st=S.p[who],k=todayKey();
+  st.days[k]=(st.days[k]||0)+1;st.tr++;
+  var key=g+':'+level+(speed?':s':''),old=st.best[key],isBest=false;
+  if(res.c>0&&(!old||better(res,old))){st.best[key]=res;isBest=true;}
+  if(!speed&&!GAMES[g].memory&&res.c===N)st.perf++;
+  if(speed&&res.c>st.speedMax)st.speedMax=res.c;
+  if(starsOf(g,res.c,speed)===3)st.s3++;
+  var nb=checkBadges(who);save();
+  return {isBest:isBest,old:old,nb:nb};
+}
+
+/* ---------- sound and voice ---------- */
+var AC=null;
+function tone(f,d,type,g){
+  if(!S.sound)return;
+  try{AC=AC||new (window.AudioContext||window.webkitAudioContext)();
+    var o=AC.createOscillator(),v=AC.createGain(),t=AC.currentTime;
+    o.type=type||'sine';o.frequency.value=f;o.connect(v);v.connect(AC.destination);
+    v.gain.setValueAtTime(g||0.08,t);v.gain.exponentialRampToValueAtTime(0.0001,t+d);o.start(t);o.stop(t+d);}catch(e){}
+}
+function sfxGood(){tone(660,.12);setTimeout(function(){tone(880,.18);},110);}
+function sfxBad(){tone(196,.3,'triangle',.1);}
+function plain(h){
+  var d=document.createElement('div');d.innerHTML=h;
+  Array.prototype.forEach.call(d.querySelectorAll('.blank'),function(e){e.textContent=' kya ';});
+  return d.textContent.replace(/=\s*\?/g,' barabar kya').replace(/−/g,' minus ').replace(/\+/g,' plus ').replace(/×/g,' guna ').replace(/÷/g,' bhaag ').replace(/=/g,' barabar ').replace(/₹/g,' rupaye ').replace(/\s+/g,' ');
+}
+function say(t){
+  try{var ss=window.speechSynthesis;if(!ss)return;ss.cancel();
+    var u=new SpeechSynthesisUtterance(t);u.lang=/[ऀ-ॿ]/.test(t)?'hi-IN':'en-IN';u.rate=.85;ss.speak(u);}catch(e){}
+}
+function stopSay(){try{if(window.speechSynthesis)window.speechSynthesis.cancel();}catch(e){}}
+
+/* ---------- view plumbing ---------- */
+var $app=document.getElementById('app'),$screen=document.getElementById('screen'),$snd=document.getElementById('snd');
+var view='home',cur=null,mem=null,timers=[],iv=null,lastPlay={g:'count',level:0,mode:'normal'},lastResult=null;
+function later(fn,ms){var id=setTimeout(fn,ms);timers.push(id);return id;}
+function clearTimers(){timers.forEach(clearTimeout);timers=[];if(iv){clearInterval(iv);iv=null;}}
+function setScreen(html){$screen.innerHTML=html;try{window.scrollTo(0,0);}catch(e){}}
+function syncChrome(){
+  $app.setAttribute('data-who',S.who);
+  $snd.textContent='Awaaz: '+(S.sound?'On':'Off');$snd.setAttribute('aria-pressed',S.sound?'true':'false');
+}
+function tileHTML(t){
+  if(t==='svg:triangle')return '<svg viewBox="0 0 100 100" aria-hidden="true"><polygon points="50,10 92,86 8,86"/></svg>';
+  if(t==='svg:memory')return '<svg viewBox="0 0 100 100" aria-hidden="true"><rect x="8" y="8" width="38" height="38" rx="6"/><rect x="54" y="8" width="38" height="38" rx="6"/><rect x="8" y="54" width="38" height="38" rx="6"/><rect x="54" y="54" width="38" height="38" rx="6"/></svg>';
+  return t;
+}
+
+/* ---------- home ---------- */
+function renderHome(){
+  clearTimers();stopSay();view='home';cur=null;mem=null;syncChrome();
+  var who=S.who,P=PROFILE[who],st=S.p[who],n=st.days[todayKey()]||0,streak=calcStreak(st);
+  var h='<div class="list">';
+  h+='<div class="who" role="tablist" aria-label="Kaun khel raha hai?">'+Object.keys(PROFILE).map(function(k){
+    return '<button class="whobtn" type="button" role="tab" aria-selected="'+(k===who)+'" data-act="who" data-v="'+k+'"><span class="wn">'+PROFILE[k].name+'</span><span class="ws">'+PROFILE[k].sub+'</span></button>';}).join('')+'</div>';
+  h+='<section class="goal" aria-label="Aaj ka goal"><div><p class="eyebrow">Aaj ka goal</p><p class="gtxt">'+(n>=3?'Goal poora! Shabaash '+P.name+'!':'3 rounds khelo')+'</p></div>'+
+     '<div class="dots3" aria-label="'+Math.min(n,3)+' mein se 3 rounds hue">'+[0,1,2].map(function(i){return '<i class="'+(i<n?'on':'')+'"></i>';}).join('')+'</div>'+
+     '<p class="streak">'+(streak>0?streak+' din lagataar practice':'Aaj se streak shuru karo')+'</p></section>';
+  h+='<h2 class="sechead">'+P.name+' ke games</h2>'+P.games.map(function(g){return gameCard(who,g,false);}).join('');
+  var others=Object.keys(GAMES).filter(function(g){return P.games.indexOf(g)<0;});
+  h+='<h2 class="sechead muted">Baaki games</h2>'+others.map(function(g){return gameCard(who,g,true);}).join('');
+  var earned=BADGES.filter(function(b){return st.badges[b[0]];});
+  h+='<h2 class="sechead">Badges ('+earned.length+'/'+BADGES.length+')</h2>'+(earned.length?'<div class="chips">'+earned.map(function(b){return '<span class="badge">'+b[1]+'</span>';}).join('')+'</div>':'<p class="lvdesc">Abhi koi badge nahi. Khelte raho!</p>');
+  h+='<div class="tools"><button class="ghost" type="button" data-act="voice">Sawal bolo: '+(voiceOn()?'On':'Off')+'</button><button class="ghost" type="button" data-act="parent">Parent view</button></div>';
+  h+='</div>';
+  setScreen(h);
+}
+function gameCard(who,g,other){
+  var G=GAMES[g];
+  return '<button class="gcard'+(other?' other':'')+'" type="button" data-act="game" data-g="'+g+'"><span class="tile">'+tileHTML(G.tile)+'</span>'+
+    '<span class="gtext"><b>'+G.name+'</b><small>'+G.blurb+'</small></span>'+
+    '<span class="gbest">Best<b>'+fmtBest(g,bestAny(who,g))+'</b></span></button>';
+}
+
+/* ---------- intro ---------- */
+function renderIntro(g){
+  clearTimers();stopSay();view='intro';mem=null;var G=GAMES[g];
+  var level=G.levels?(S.lvl[g]||G.levels[0].id):0;
+  var mode=(!G.memory&&S.mode[g]==='speed')?'speed':'normal';
+  cur={g:g,level:level,mode:mode};
+  var h='<div class="list"><button class="ghost back" type="button" data-act="home">← Ghar</button>'+
+    '<h2 class="title2">'+G.name+'</h2><p>'+G.blurb+'</p>'+
+    '<div class="tip"><p class="eyebrow">Seekho</p><p>'+G.tip+'</p></div>';
+  if(G.levels){
+    h+='<p class="eyebrow">Level chuno</p><div class="chips">'+G.levels.map(function(l){
+      return '<button class="chip" type="button" aria-pressed="'+(l.id===level)+'" data-act="lvl" data-v="'+l.id+'">'+l.label+'</button>';}).join('')+'</div>';
+    var cl=G.levels.filter(function(l){return l.id===level;})[0];
+    h+='<p class="lvdesc">'+cl.desc+'</p>';
+  }
+  if(!G.memory){
+    h+='<p class="eyebrow">Kaise khelna hai?</p><div class="chips">'+[['normal','10 sawal'],['speed','Speed · 60 second']].map(function(m){
+      return '<button class="chip" type="button" aria-pressed="'+(m[0]===mode)+'" data-act="mode" data-v="'+m[0]+'">'+m[1]+'</button>';}).join('')+'</div>';
+    if(mode==='speed')h+='<p class="lvdesc">60 second mein jitne ho sakein, utne sahi jawab do.</p>';
+  }
+  var b=S.p[S.who].best[g+':'+level+(mode==='speed'?':s':'')];
+  h+='<div class="bestline"><span>Tumhara best</span><span>'+(mode==='speed'?(b?b.c+' sahi':'—'):fmtBest(g,b)+(b&&!G.memory?' · '+fmtTime(b.ms):''))+'</span></div>';
+  var pend=S.p[S.who].wrong.filter(function(w){return w.g===g&&w.level===level;}).length;
+  if(pend&&mode==='normal')h+='<p class="lvdesc">'+pend+' galat sawal phir se aayenge.</p>';
+  h+='<button class="btn primary big" type="button" data-act="start">Shuru karo</button></div>';
+  setScreen(h);
+}
+
+/* ---------- quiz ---------- */
+function startQuiz(){
+  var g=cur.g,level=cur.level,speed=cur.mode==='speed'&&!GAMES[g].memory;
+  lastPlay={g:g,level:level,mode:cur.mode};
+  if(GAMES[g].memory){startMemory(level);return;}
+  var qs=makeQuestions(g,level,N);
+  if(!speed){
+    var pend=S.p[S.who].wrong.filter(function(w){return w.g===g&&w.level===level;}).slice(0,3);
+    var pos=shuffle(range(2,N-1));
+    pend.forEach(function(w,i){var q=JSON.parse(JSON.stringify(w.q));q.retry=true;qs[pos[i]]=q;});
+  }
+  cur={g:g,level:level,speed:speed,qs:qs,i:0,c:0,ms:0,left:60000,running:true,last:Date.now(),locked:false,entry:'',waiting:false};
+  view='quiz';renderQuestion();
+  iv=setInterval(function(){
+    if(!cur||view!=='quiz')return;
+    var now=Date.now(),dt=now-cur.last;cur.last=now;
+    if(cur.running)cur.ms+=dt;
+    var t=document.getElementById('tm');
+    if(cur.speed){
+      cur.left-=dt;var m=document.getElementById('mt');
+      if(t)t.textContent=Math.max(0,Math.ceil(cur.left/1000))+'s';
+      if(m)m.style.width=Math.max(0,cur.left/600)+'%';
+      if(cur.left<=0){finishQuiz();return;}
+    }else if(t){t.textContent=fmtTime(cur.ms);}
+  },250);
+}
+function renderQuestion(){
+  var q=cur.qs[cur.i];cur.locked=false;cur.entry='';cur.waiting=false;cur.running=true;
+  var h='<div class="list"><div class="qhead"><button class="ghost" type="button" data-act="home">Ghar</button>'+
+    '<p class="pcount">'+(cur.speed?'Sahi: '+cur.c:(cur.i+1)+' / '+N)+'</p><p class="timer" id="tm">'+(cur.speed?Math.max(0,Math.ceil(cur.left/1000))+'s':fmtTime(cur.ms))+'</p></div>'+
+    '<div class="meter" aria-hidden="true"><i id="mt" style="width:'+(cur.speed?cur.left/600:cur.i/N*100)+'%"></i></div>'+
+    '<div class="qcard">'+(q.retry?'<p class="eyebrow">Pichhli baar galat tha. Phir se try karo</p>':'')+(q.visual||'')+'<div class="qprompt">'+q.prompt+'</div>'+
+    '<button class="ghost" type="button" data-act="say">Sunao</button></div>';
+  if(q.kind==='choice'){
+    var long=q.options.some(function(o){return o.label.length>7;});
+    h+='<div class="opts '+(long?'c1':'c'+q.options.length)+'">'+q.options.map(function(o){
+      return '<button class="opt" type="button" data-act="opt" data-v="'+o.value+'">'+o.label+'</button>';}).join('')+'</div>';
+  }else{
+    h+='<div class="ansbox" id="ans" aria-live="polite">?</div><div class="keypad">'+
+      [1,2,3,4,5,6,7,8,9].map(function(d){return '<button class="key" type="button" data-act="key" data-v="'+d+'">'+d+'</button>';}).join('')+
+      '<button class="key sm" type="button" data-act="key" data-v="del">Mita</button><button class="key" type="button" data-act="key" data-v="0">0</button>'+
+      '<button class="key go" type="button" data-act="key" data-v="ok">Check</button></div>';
+  }
+  h+='<div class="fb" id="fb" role="status" aria-live="polite"></div></div>';
+  setScreen(h);
+  if(voiceOn()&&!cur.speed)later(function(){say(plain(q.prompt));},250);
+}
+function showEntry(){var a=document.getElementById('ans');if(a)a.textContent=cur.entry===''?'?':cur.entry;}
+function answer(val,btn){
+  if(!cur||cur.locked)return;
+  var q=cur.qs[cur.i];if(q.kind==='number'&&String(val)==='')return;
+  cur.locked=true;
+  var ok=String(Number(val))===q.answer||String(val)===q.answer;
+  var P=S.p[S.who],s=P.stat[cur.g]||(P.stat[cur.g]={a:0,c:0});
+  s.a++;if(ok){s.c++;P.tc++;}
+  if(!cur.speed){
+    var ix=-1;P.wrong.forEach(function(w,j){if(w.g===cur.g&&w.level===cur.level&&w.q.key===q.key)ix=j;});
+    if(ok&&ix>=0&&q.retry)P.wrong.splice(ix,1);
+    else if(!ok&&ix<0){
+      P.wrong.push({g:cur.g,level:cur.level,q:{kind:q.kind,visual:q.visual,prompt:q.prompt,options:q.options,answer:q.answer,explain:q.explain,key:q.key}});
+      if(P.wrong.length>30)P.wrong.shift();
+    }
+  }
+  save();
+  var fb=document.getElementById('fb');
+  if(q.kind==='choice'){
+    Array.prototype.forEach.call($screen.querySelectorAll('.opt'),function(b){if(b.getAttribute('data-v')===q.answer)b.classList.add('ok');});
+    if(btn&&!ok)btn.classList.add('bad');
+  }else{
+    var box=document.getElementById('ans');if(box)box.classList.add(ok?'ok':'bad');
+  }
+  if(ok){
+    cur.c++;sfxGood();fb.className='fb ok';fb.textContent=pick(['Shabaash!','Bilkul sahi!','Wah, zabardast!','Ekdum sahi!']);
+    later(nextQuestion,cur.speed?400:900);
+  }else{
+    sfxBad();fb.className='fb bad';
+    if(cur.speed){fb.innerHTML='<b>Sahi jawab: '+q.answer+'</b>';later(nextQuestion,1100);}
+    else{
+      cur.running=false;cur.waiting=true;
+      fb.innerHTML='<b>Sahi jawab: '+q.answer+'</b><span>'+q.explain+'</span><button class="btn primary" type="button" data-act="next">'+(cur.i===N-1?'Result dekho':'Agla sawal')+'</button>';
+      var nb=fb.querySelector('[data-act="next"]');if(nb)nb.focus({preventScroll:true});
+    }
+  }
+}
+function nextQuestion(){
+  if(!cur||view!=='quiz')return;
+  cur.i++;
+  if(cur.speed){if(cur.i>=cur.qs.length)cur.qs=cur.qs.concat(makeQuestions(cur.g,cur.level,10));renderQuestion();return;}
+  if(cur.i>=N){finishQuiz();return;}
+  renderQuestion();
+}
+function finishQuiz(){
+  if(!cur||view!=='quiz')return;
+  clearTimers();
+  var res={c:cur.c,ms:cur.speed?0:Math.round(cur.ms)},r=record(S.who,cur.g,cur.level,res,cur.speed);
+  renderResult({g:cur.g,level:cur.level,c:res.c,ms:res.ms,isBest:r.isBest,nb:r.nb,memory:false,speed:cur.speed});
+}
+
+/* ---------- memory game ---------- */
+var PAD_ICON=['<circle cx="50" cy="50" r="38"/>','<rect x="14" y="14" width="72" height="72" rx="3"/>','<polygon points="50,10 92,86 8,86"/>','<polygon points="50,6 61,38 95,38 67,58 78,92 50,71 22,92 33,58 5,38 39,38"/>'];
+var PAD_NAME=['Laal','Neela','Peela','Hara'],PAD_FREQ=[262,330,392,523];
+function startMemory(level){
+  clearTimers();view='memory';
+  mem={g:'memory',level:level,seq:[],pos:0,accept:false,over:false};cur=null;
+  var h='<div class="list"><div class="qhead"><button class="ghost" type="button" data-act="home">Ghar</button><p class="pcount" id="mlen">Step 1</p><p class="timer"></p></div>'+
+    '<p class="status" id="mstat" role="status" aria-live="polite">Taiyar ho jao...</p><div class="pads">'+
+    PAD_ICON.map(function(ic,i){return '<button class="pad wait" type="button" data-act="pad" data-v="'+i+'" aria-label="'+PAD_NAME[i]+'"><svg viewBox="0 0 100 100" aria-hidden="true">'+ic+'</svg></button>';}).join('')+'</div></div>';
+  setScreen(h);later(nextMem,700);
+}
+function memStatus(t){var e=document.getElementById('mstat');if(e)e.textContent=t;}
+function setPadsWait(w){Array.prototype.forEach.call($screen.querySelectorAll('.pad'),function(p){p.classList.toggle('wait',w);});}
+function lit(i,dur){
+  var p=$screen.querySelector('.pad[data-v="'+i+'"]');if(!p)return;
+  p.classList.add('lit');tone(PAD_FREQ[i],Math.max(dur,200)/1000,'sine',.1);
+  later(function(){p.classList.remove('lit');},dur);
+}
+function nextMem(){
+  if(!mem||view!=='memory')return;
+  mem.seq.push(rnd(0,3));mem.pos=0;mem.accept=false;setPadsWait(true);
+  var e=document.getElementById('mlen');if(e)e.textContent='Step '+mem.seq.length;
+  memStatus('Dekho...');
+  var gap=mem.level===2?520:820,on=Math.round(gap*0.62),t0=500;
+  mem.seq.forEach(function(p,i){later(function(){lit(p,on);},t0+i*gap);});
+  later(function(){mem.accept=true;setPadsWait(false);memStatus('Ab tumhari baari!');},t0+mem.seq.length*gap);
+}
+function pressPad(i){
+  if(!mem||!mem.accept||mem.over)return;
+  lit(i,220);
+  if(i===mem.seq[mem.pos]){
+    mem.pos++;
+    if(mem.pos===mem.seq.length){mem.accept=false;setPadsWait(true);memStatus('Sahi! Agla step...');later(sfxGood,250);later(nextMem,1000);}
+  }else{
+    mem.over=true;mem.accept=false;sfxBad();setPadsWait(true);memStatus('Oho! Galat order.');
+    later(finishMemory,1100);
+  }
+}
+function finishMemory(){
+  var c=mem.seq.length-1,level=mem.level;clearTimers();
+  var res={c:c,ms:0},r=record(S.who,'memory',level,res,false);
+  renderResult({g:'memory',level:level,c:c,ms:0,isBest:r.isBest,nb:r.nb,memory:true,speed:false});
+}
+
+/* ---------- result, certificate, parent ---------- */
+var STAR='<svg viewBox="0 0 100 100" aria-hidden="true"><polygon points="50,6 61,38 95,38 67,58 78,92 50,71 22,92 33,58 5,38 39,38"/></svg>';
+function titleOf(r){return GAMES[r.g].name+(levelLabel(r.g,r.level)?' · '+levelLabel(r.g,r.level):'')+(r.speed?' · Speed':'');}
+function starsHTML(n){return '<div class="stars" aria-label="'+n+' mein se 3 stars">'+[0,1,2].map(function(i){return STAR.replace('<svg','<svg class="'+(i<n?'on':'')+'"');}).join('')+'</div>';}
+function renderResult(r){
+  view='result';clearTimers();stopSay();lastResult=r;
+  var stars=starsOf(r.g,r.c,r.speed);
+  var msg=stars===3?'Zabardast, '+PROFILE[S.who].name+'!':stars===2?'Bahut badhiya!':stars===1?'Achha try! Thoda aur practice.':'Koi baat nahi, phir se try karo!';
+  var best=S.p[S.who].best[r.g+':'+r.level+(r.speed?':s':'')];
+  var h='<div class="result"><p class="eyebrow">'+titleOf(r)+'</p>'+starsHTML(stars)+
+    '<p class="score">'+(r.memory?r.c+' step':r.speed?r.c+' sahi':r.c+' / '+N)+'</p>'+
+    (r.memory?'':r.speed?'<p class="timer">60 second mein</p>':'<p class="timer">Time: '+fmtTime(r.ms)+'</p>')+
+    (r.isBest?'<p class="newbest">Naya best!</p>':'')+
+    (r.nb&&r.nb.length?'<div class="chips">'+r.nb.map(function(b){return '<span class="badge">Naya badge: '+b+'</span>';}).join('')+'</div>':'')+
+    '<p class="qprompt">'+msg+'</p>'+
+    '<p class="lvdesc">Best: '+(r.speed?(best?best.c+' sahi':'—'):fmtBest(r.g,best)+(best&&!r.memory?' · '+fmtTime(best.ms):''))+'</p>'+
+    (r.isBest?'<button class="btn big" type="button" data-act="cert">Certificate dekho</button>':'')+
+    '<div class="row2"><button class="btn primary" type="button" data-act="again">Phir se</button><button class="btn" type="button" data-act="home">Ghar</button></div></div>';
+  setScreen(h);
+}
+function renderCert(){
+  var r=lastResult;if(!r){renderHome();return;}
+  view='cert';
+  var score=r.memory?r.c+' step':r.speed?r.c+' sahi (60 second)':r.c+' / '+N+' · '+fmtTime(r.ms);
+  var h='<div class="list"><div class="cert"><p class="eyebrow">Mini Champs</p><h2 class="title2">Champion Certificate</h2><p>Ye certificate diya jata hai</p>'+
+    '<p class="certname">'+PROFILE[S.who].name+'</p><p>ko <b>'+titleOf(r)+'</b> mein naya best banane ke liye</p>'+
+    starsHTML(starsOf(r.g,r.c,r.speed))+'<p class="score">'+score+'</p>'+
+    '<p class="lvdesc">'+new Date().toLocaleDateString('en-IN',{day:'numeric',month:'long',year:'numeric'})+'</p></div>'+
+    '<p class="lvdesc">Screenshot lekar family ko bhej do.</p>'+
+    '<div class="row2"><button class="btn primary" type="button" data-act="backres">Wapas</button><button class="btn" type="button" data-act="home">Ghar</button></div></div>';
+  setScreen(h);
+}
+function renderParent(){
+  clearTimers();stopSay();view='parent';
+  var h='<div class="list"><button class="ghost back" type="button" data-act="home">← Ghar</button><h2 class="title2">Parent view</h2><p class="lvdesc">Ye data sirf is phone ke browser ka hai.</p>';
+  Object.keys(PROFILE).forEach(function(k){
+    var st=S.p[k],P=PROFILE[k],A=0,C=0,rows=[],weak=[];
+    Object.keys(st.stat).forEach(function(g){
+      var s=st.stat[g];if(!GAMES[g]||!s.a)return;
+      A+=s.a;C+=s.c;rows.push({g:g,a:s.a,c:s.c,p:Math.round(100*s.c/s.a)});
+      if(s.a>=10&&s.c/s.a<0.7)weak.push(GAMES[g].name);
+    });
+    rows.sort(function(x,y){return x.p-y.p;});
+    function row(a,b){return '<div class="prow"><span>'+a+'</span><b>'+b+'</b></div>';}
+    h+='<section class="pcard pc-'+k+'"><h3>'+P.name+' <small>'+P.sub+'</small></h3>'+
+      row('Aaj ke rounds',st.days[todayKey()]||0)+row('Streak',calcStreak(st)+' din')+row('Total rounds',st.tr)+
+      row('Sahi jawab',C+' / '+A+(A?' ('+Math.round(100*C/A)+'%)':''))+
+      row('Galat sawal (dobara aayenge)',st.wrong.length)+row('Badges',Object.keys(st.badges).length+' / '+BADGES.length)+
+      (weak.length?'<p class="weak">Practice chahiye: '+weak.join(', ')+'</p>':'')+
+      (rows.length?'<p class="eyebrow">Games (kamzor pehle)</p>'+rows.map(function(x){return row(GAMES[x.g].name,x.c+'/'+x.a+' · '+x.p+'%');}).join(''):'<p class="lvdesc">Abhi koi data nahi.</p>')+
+      '</section>';
+  });
+  h+='</div>';
+  setScreen(h);
+}
+
+/* ---------- events ---------- */
+$screen.addEventListener('click',function(e){
+  var b=e.target.closest('[data-act]');if(!b)return;
+  var a=b.getAttribute('data-act'),v=b.getAttribute('data-v');
+  if(a==='who'){S.who=v;save();renderHome();}
+  else if(a==='game'){renderIntro(b.getAttribute('data-g'));}
+  else if(a==='lvl'){S.lvl[cur.g]=Number(v);save();renderIntro(cur.g);}
+  else if(a==='mode'){S.mode[cur.g]=v;save();renderIntro(cur.g);}
+  else if(a==='start'){startQuiz();}
+  else if(a==='home'){renderHome();}
+  else if(a==='opt'){answer(v,b);}
+  else if(a==='key'){
+    if(!cur||cur.locked)return;
+    if(v==='del')cur.entry=cur.entry.slice(0,-1);
+    else if(v==='ok')answer(cur.entry);
+    else if(cur.entry.length<4)cur.entry+=v;
+    showEntry();
+  }
+  else if(a==='next'){nextQuestion();}
+  else if(a==='say'){if(cur&&cur.qs)say(plain(cur.qs[cur.i].prompt));}
+  else if(a==='again'){cur={g:lastPlay.g,level:lastPlay.level,mode:lastPlay.mode};startQuiz();}
+  else if(a==='pad'){pressPad(Number(v));}
+  else if(a==='voice'){S.p[S.who].voice=!voiceOn();save();renderHome();}
+  else if(a==='parent'){renderParent();}
+  else if(a==='cert'){renderCert();}
+  else if(a==='backres'){if(lastResult)renderResult(lastResult);else renderHome();}
+});
+document.addEventListener('keydown',function(e){
+  if(view!=='quiz'||!cur)return;
+  var q=cur.qs[cur.i];
+  if(cur.waiting&&e.key==='Enter'){e.preventDefault();nextQuestion();return;}
+  if(!q||q.kind!=='number'||cur.locked)return;
+  if(/^[0-9]$/.test(e.key)){if(cur.entry.length<4){cur.entry+=e.key;showEntry();}}
+  else if(e.key==='Backspace'){cur.entry=cur.entry.slice(0,-1);showEntry();}
+  else if(e.key==='Enter'){answer(cur.entry);}
+});
+$snd.addEventListener('click',function(){S.sound=!S.sound;save();syncChrome();if(S.sound)tone(660,.12);});
+renderHome();
+})();
+</script>
+</body>
+</html>
