@@ -80,3 +80,14 @@ on every redeploy.
 - Railway hosting itself is a separate charge after its free trial. To pay nothing at all you can
   run the app on a free host or on your own computer (`npm start`).
 - `GET /api/ai/status` shows which AI is active.
+## Read & Write (Padho-Likho)
+
+A tab for children who need help with reading fluency and handwriting speed (`public/readwrite.js`):
+
+- **Zor se padho** – timed reading aloud with speech recognition; shows words/min, accuracy, and highlights missed words (tap to correct).
+- **Word Flash** – 60-second sight-word rounds.
+- **Copy-book** – dictation/copy sentences into a real notebook, timed, parent checks neatness.
+- **Vakya banao** – arrange scrambled words into sentences.
+- **Meri speed** – progress chart and a daily 15-minute plan.
+
+Works offline with built-in content; AI is only used for "new story". Results are saved to Progress (subjects Reading / Writing) and count toward streaks.

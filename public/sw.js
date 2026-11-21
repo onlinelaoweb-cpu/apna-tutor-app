@@ -3,7 +3,7 @@
 // API calls (/api/*) always go to the network - tutoring and quizzes need
 // a live connection, so this does NOT try to fake offline AI responses.
 
-const CACHE_NAME = 'apna-tutor-shell-v4';
+const CACHE_NAME = 'apna-tutor-shell-v5';
 const SHELL_FILES = [
   '/',
   '/manifest.json',
@@ -11,6 +11,7 @@ const SHELL_FILES = [
   '/icons/icon-512.png',
   '/images/teacher-avatar.jpg',
   '/offline.html',
+  '/readwrite.js',
 ];
 
 self.addEventListener('install', (event) => {

@@ -649,6 +649,7 @@ const UI_STRINGS = {
   tabQuiz: { en: "Practice Quiz", hi: "अभ्यास प्रश्नोत्तरी" },
   tabWorksheet: { en: "Worksheet", hi: "वर्कशीट" },
   tabSpelling: { en: "Spelling", hi: "वर्तनी" },
+  tabReadWrite: { en: "Read & Write", hi: "पढ़ो-लिखो" },
   tabFun: { en: "Fun Zone", hi: "मस्ती की दुनिया" },
   tabProgress: { en: "Progress", hi: "प्रगति" },
   familySummary: { en: "Family Summary", hi: "परिवार सारांश" },
@@ -683,7 +684,7 @@ const FUN_ZONE_DATA = [
 const SUBJECT_COLORS = {
   "Mathematics": "#E0793C", "Science": "#3B6EA5", "Physics": "#3B6EA5",
   "Chemistry": "#4C9F70", "Biology": "#7C5CBF", "English": "#C2536B",
-  "Hindi": "#B23A48", "Social Science": "#8A6D3B", "EVS": "#4C9F70",
+  "Hindi": "#B23A48", "Reading": "#2F8F9D", "Writing": "#8E5BB5", "Social Science": "#8A6D3B", "EVS": "#4C9F70",
   "Economics": "#8A6D3B", "Accountancy": "#3B6EA5", "Business Studies": "#E0793C",
   "History": "#8A6D3B", "Political Science": "#7C5CBF", "Geography": "#4C9F70",
   "ICT": "#2E9C9C",
@@ -2772,8 +2773,8 @@ function render(){
 
   const early = profile && isEarlyYears(profile.grade);
   const tabDefs = early
-    ? [['play',t('tabPlay')],['tutor',t('tabTutor')],['quiz',t('tabQuiz')],['fun',t('tabFun')],['progress',t('tabProgress')]]
-    : [['tutor',t('tabTutor')],['quiz',t('tabQuiz')],['worksheet',t('tabWorksheet')],['spelling',t('tabSpelling')],['fun',t('tabFun')],['progress',t('tabProgress')]];
+    ? [['play',t('tabPlay')],['tutor',t('tabTutor')],['quiz',t('tabQuiz')],['readwrite',t('tabReadWrite')],['fun',t('tabFun')],['progress',t('tabProgress')]]
+    : [['tutor',t('tabTutor')],['quiz',t('tabQuiz')],['worksheet',t('tabWorksheet')],['spelling',t('tabSpelling')],['readwrite',t('tabReadWrite')],['fun',t('tabFun')],['progress',t('tabProgress')]];
   const validKeys = tabDefs.map(([k])=>k);
   if (!validKeys.includes(state.activeTab)) state.activeTab = early ? 'play' : 'tutor';
 
@@ -2789,6 +2790,7 @@ function render(){
   else if (state.activeTab==='quiz') panel.appendChild(renderQuiz());
   else if (state.activeTab==='worksheet') panel.appendChild(renderWorksheet());
   else if (state.activeTab==='spelling') panel.appendChild(renderSpelling());
+  else if (state.activeTab==='readwrite') panel.appendChild(renderReadWrite());
   else if (state.activeTab==='fun') panel.appendChild(renderFunZone());
   else panel.appendChild(renderProgress());
   main.appendChild(panel);
@@ -2901,5 +2903,6 @@ function promptInstall(){
   });
 }
 </script>
+<script src="/readwrite.js"></script>
 </body>
 </html>
