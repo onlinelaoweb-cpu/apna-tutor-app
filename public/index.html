@@ -650,6 +650,7 @@ const UI_STRINGS = {
   tabWorksheet: { en: "Worksheet", hi: "वर्कशीट" },
   tabSpelling: { en: "Spelling", hi: "वर्तनी" },
   tabReadWrite: { en: "Read & Write", hi: "पढ़ो-लिखो" },
+  tabHomework: { en: "Homework", hi: "होमवर्क" },
   tabFun: { en: "Fun Zone", hi: "मस्ती की दुनिया" },
   tabProgress: { en: "Progress", hi: "प्रगति" },
   familySummary: { en: "Family Summary", hi: "परिवार सारांश" },
@@ -2773,8 +2774,8 @@ function render(){
 
   const early = profile && isEarlyYears(profile.grade);
   const tabDefs = early
-    ? [['play',t('tabPlay')],['tutor',t('tabTutor')],['quiz',t('tabQuiz')],['readwrite',t('tabReadWrite')],['fun',t('tabFun')],['progress',t('tabProgress')]]
-    : [['tutor',t('tabTutor')],['quiz',t('tabQuiz')],['worksheet',t('tabWorksheet')],['spelling',t('tabSpelling')],['readwrite',t('tabReadWrite')],['fun',t('tabFun')],['progress',t('tabProgress')]];
+    ? [['play',t('tabPlay')],['tutor',t('tabTutor')],['quiz',t('tabQuiz')],['readwrite',t('tabReadWrite')],['homework',t('tabHomework')],['fun',t('tabFun')],['progress',t('tabProgress')]]
+    : [['tutor',t('tabTutor')],['quiz',t('tabQuiz')],['worksheet',t('tabWorksheet')],['spelling',t('tabSpelling')],['readwrite',t('tabReadWrite')],['homework',t('tabHomework')],['fun',t('tabFun')],['progress',t('tabProgress')]];
   const validKeys = tabDefs.map(([k])=>k);
   if (!validKeys.includes(state.activeTab)) state.activeTab = early ? 'play' : 'tutor';
 
@@ -2790,9 +2791,10 @@ function render(){
   else if (state.activeTab==='quiz') panel.appendChild(renderQuiz());
   else if (state.activeTab==='worksheet') panel.appendChild(renderWorksheet());
   else if (state.activeTab==='spelling') panel.appendChild(renderSpelling());
+  else if (state.activeTab==='homework') panel.appendChild(renderHomework());
   else if (state.activeTab==='readwrite') panel.appendChild(renderReadWrite());
   else if (state.activeTab==='fun') panel.appendChild(renderFunZone());
-  else panel.appendChild(renderProgress());
+  else { panel.appendChild(renderProgress()); panel.appendChild(renderProgressExtras()); }
   main.appendChild(panel);
 
   app.appendChild(main);
@@ -2904,5 +2906,6 @@ function promptInstall(){
 }
 </script>
 <script src="/readwrite.js"></script>
+<script src="/extras.js"></script>
 </body>
 </html>

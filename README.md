@@ -91,3 +91,7 @@ A tab for children who need help with reading fluency and handwriting speed (`pu
 - **Meri speed** – progress chart and a daily 15-minute plan.
 
 Works offline with built-in content; AI is only used for "new story". Results are saved to Progress (subjects Reading / Writing) and count toward streaks.
+
+## Homework, revision and weekly report
+
+`public/extras.js`: a Homework planner tab (per child, stored in the browser), a "Revise" list of topics scoring under 60% (one tap starts a quiz), and a weekly parent report that can be sent via WhatsApp (Progress tab).
