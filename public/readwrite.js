@@ -21,6 +21,21 @@ const RW_PASSAGES = {
   ]
 };
 
+const RW_PASSAGES_HI = {
+  1: [
+    { title: 'मेरा घर', text: 'यह मेरा घर है। घर में माँ और पापा रहते हैं। मेरी एक छोटी बहन है। हम सब साथ खाना खाते हैं।' },
+    { title: 'आम', text: 'आम फल है। आम पीला और मीठा होता है। मुझे आम बहुत पसंद है। गर्मी में हम आम खाते हैं।' }
+  ],
+  2: [
+    { title: 'चतुर कौआ', text: 'एक कौआ बहुत प्यासा था। उसे एक घड़ा दिखा। घड़े में थोड़ा पानी था। कौए ने कंकड़ डाले। पानी ऊपर आ गया और कौए ने पानी पी लिया।' },
+    { title: 'हमारा स्कूल', text: 'हमारा स्कूल बहुत सुंदर है। सुबह हम प्रार्थना करते हैं। फिर कक्षा में पढ़ाई होती है। छुट्टी में हम मैदान में खेलते हैं।' }
+  ],
+  3: [
+    { title: 'सच्चा लकड़हारा', text: 'एक गरीब लकड़हारा नदी के किनारे पेड़ काट रहा था। उसकी कुल्हाड़ी नदी में गिर गई। वह बहुत दुखी हुआ। तभी जल देवी प्रकट हुईं और सोने की कुल्हाड़ी दिखाई। लकड़हारे ने कहा, यह मेरी नहीं है। उसकी ईमानदारी से खुश होकर देवी ने उसे उसकी कुल्हाड़ी लौटा दी।' },
+    { title: 'पानी बचाओ', text: 'पानी हमारे जीवन के लिए बहुत ज़रूरी है। हमें नल को खुला नहीं छोड़ना चाहिए। दाँत साफ़ करते समय नल बंद रखें। बाल्टी से नहाने पर बहुत पानी बचता है। अगर सब मिलकर पानी बचाएँ तो नदियाँ और कुएँ हमेशा भरे रहेंगे।' }
+  ]
+};
+
 const RW_SIGHT = {
   1: ['the','and','is','you','it','in','said','was','for','they','are','have','this','with','but','not','what','all','were','when','we','can','your','there','up','out','if','about','who','get'],
   2: ['because','where','would','could','should','their','people','again','always','before','after','every','found','great','little','mother','father','friend','school','water','these','those','which','while','write','right','house','around','together','very'],
@@ -39,7 +54,7 @@ const RW_WRITE_TARGET = { 1: 5, 2: 8, 3: 12 };
 
 const RW = {
   mode: 'home',     // home | read | flash | write | build | stats
-  level: null,      // 1|2|3, null = auto from grade
+  level: null, lang: 'en',      // 1|2|3, null = auto from grade
   // reading
   phase: 'pick', passage: null, missed: new Set(), startTs: 0, secs: 0, timer: null, rec: null,
   srOk: true, srBase: '', srCur: '', aiLoading: false, saved: false,
@@ -63,6 +78,7 @@ function rwTargetGrade(profile){
   return isNaN(g) ? 1 : g;
 }
 function rwKey(id){ return 'apnaTutorRW_' + id; }
+function rwSpellMiss(id){ try { return JSON.parse(localStorage.getItem('apnaTutorSpellMiss_' + id) || '[]'); } catch(e){ return []; } }
 function rwHist(id){
   try { const h = JSON.parse(localStorage.getItem(rwKey(id)) || '{}'); return { read: h.read || [], write: h.write || [], flash: h.flash || [], build: h.build || [] }; }
   catch(e){ return { read: [], write: [], flash: [], build: [] }; }
@@ -80,7 +96,8 @@ async function rwLog(profile, subject, topic, score, total){
   await saveProgressEntry(profile.id, entry);
   try { await loadStreak(profile.id); } catch(e){}
 }
-function rwNorm(w){ return String(w).toLowerCase().replace(/[^a-z']/g, ''); }
+function rwNorm(w){ return String(w).toLowerCase().replace(/[^a-z\u0900-\u097F']/g, ''); }
+function rwSpeak(text){ const keep = state.ttsLang; state.ttsLang = RW.lang; try { speak(text); } finally { state.ttsLang = keep; } }
 function rwShuffle(a){ a = a.slice(); for (let i = a.length - 1; i > 0; i--){ const j = Math.floor(Math.random() * (i + 1)); [a[i], a[j]] = [a[j], a[i]]; } return a; }
 function rwPick(arr, n){ return rwShuffle(arr).slice(0, n); }
 function rwStopAll(){
@@ -166,7 +183,7 @@ async function rwNewAiPassage(profile){
   const words = { 1: 30, 2: 55, 3: 80 }[lvl];
   RW.aiLoading = true; render();
   const sys = 'You write short reading passages for Indian school children. Respond with ONLY valid JSON, no markdown fences: {"title":"...","text":"..."}. Use simple, clear English, short sentences, Indian everyday context, no difficult names.';
-  const user = `Write a fresh story or fact passage of about ${words} words for a Class ${profile.grade} child (reading level ${lvl} of 3). Plain text only, no quotes inside unless needed.`;
+  const user = `Write a fresh story or fact passage in ${RW.lang === 'hi' ? 'simple Hindi (Devanagari script)' : 'simple English'} of about ${words} words for a Class ${profile.grade} child (reading level ${lvl} of 3). Plain text only, no quotes inside unless needed.`;
   try {
     let raw = await callClaude(sys, user, null, [], false);
     raw = raw.replace(/```json|```/g, '').trim();
@@ -174,7 +191,7 @@ async function rwNewAiPassage(profile){
     if (p && p.text && p.text.split(/\s+/).length >= 15){ RW.passage = { title: p.title || 'New Story', text: p.text.trim() }; }
     else throw new Error('bad');
   } catch(e){
-    RW.passage = rwPick(RW_PASSAGES[lvl], 1)[0];
+    RW.passage = rwPick((RW.lang === 'hi' ? RW_PASSAGES_HI : RW_PASSAGES)[lvl], 1)[0];
   }
   RW.aiLoading = false; RW.phase = 'ready'; RW.missed = new Set(); RW.saved = false; render();
 }
@@ -188,7 +205,7 @@ function rwStartReading(){
   if (SR){
     try {
       const r = new SR();
-      r.lang = 'en-IN'; r.continuous = true; r.interimResults = true;
+      r.lang = RW.lang === 'hi' ? 'hi-IN' : 'en-IN'; r.continuous = true; r.interimResults = true;
       r.onresult = (e) => { let s = ''; for (let i = 0; i < e.results.length; i++) s += e.results[i][0].transcript + ' '; RW.srCur = s; };
       r.onerror = (e) => { if (e.error === 'not-allowed' || e.error === 'service-not-allowed'){ RW.srOk = false; } };
       r.onend = () => {
@@ -234,9 +251,13 @@ function rwRead(profile){
     wrap.appendChild(el('div', { style: RW_CARD }, [
       el('h2', { style: 'margin:0 0 6px;' }, ['Kya padhna hai?']),
       el('div', { style: 'color:var(--ink-soft); font-size:13px;' }, ['Level chuno, phir passage. Sahi se, saaf aur dheere-dheere padho - speed baad mein aayegi.']),
-      rwLevelChips(profile)
+      rwLevelChips(profile),
+      el('div', { style: 'display:flex; gap:8px; justify-content:center;' }, [['en', 'English'], ['hi', 'हिंदी']].map(([c, n]) => el('button', {
+        style: RW_SOFT_BTN + (RW.lang === c ? 'background:var(--gold); border-color:var(--gold);' : ''),
+        onclick: () => { RW.lang = c; render(); }
+      }, [n])))
     ]));
-    RW_PASSAGES[lvl].forEach(p => {
+    (RW.lang === 'hi' ? RW_PASSAGES_HI : RW_PASSAGES)[lvl].forEach(p => {
       wrap.appendChild(el('div', { style: RW_CARD + 'cursor:pointer;', onclick: () => rwChoosePassage(profile, p) }, [
         el('div', { style: 'font-weight:800;' }, [p.title]),
         el('div', { style: 'font-size:12.5px; color:var(--ink-soft);' }, [p.text.split(/\s+/).length + ' words'])
@@ -259,7 +280,7 @@ function rwRead(profile){
     const span = el('span', {
       style: 'cursor:pointer; padding:1px 3px; border-radius:6px; margin-right:2px;' + (missed ? 'background:#FBEAEC; color:var(--maroon); font-weight:700;' : ''),
       onclick: () => {
-        if (RW.phase === 'ready') { speak(rwNorm(w) || w); }
+        if (RW.phase === 'ready') { rwSpeak(rwNorm(w) || w); }
         else if (RW.phase === 'done'){ if (RW.missed.has(i)) RW.missed.delete(i); else RW.missed.add(i); render(); }
       }
     }, [w]);
@@ -271,7 +292,7 @@ function rwRead(profile){
   if (RW.phase === 'ready'){
     wrap.appendChild(el('div', { style: 'text-align:center; color:var(--ink-soft); font-size:13px; margin-bottom:10px;' }, ['Kisi bhi word par tap karo to wo bolke batayega. Tayyar ho to Start dabao aur zor se padho.']));
     wrap.appendChild(el('div', { style: 'display:flex; gap:10px; justify-content:center; flex-wrap:wrap;' }, [
-      rwBtn('🔊 Pehle sun lo', () => speak(RW.passage.text), false),
+      rwBtn('🔊 Pehle sun lo', () => rwSpeak(RW.passage.text), false),
       rwBtn('▶ Start reading', rwStartReading, true),
       rwBtn('Doosra passage', () => { RW.phase = 'pick'; render(); }, false)
     ]));
@@ -298,7 +319,7 @@ function rwRead(profile){
       el('div', { style: 'font-size:12.5px; color:var(--ink-soft); margin-top:6px;' }, ['Upar kisi word par tap karke sahi/galat badal sakte ho (laal = galat).'])
     ]));
     wrap.appendChild(el('div', { style: 'display:flex; gap:10px; justify-content:center; flex-wrap:wrap;' }, [
-      rwBtn('🔊 Sahi tarah sun lo', () => speak(RW.passage.text), false),
+      rwBtn('🔊 Sahi tarah sun lo', () => rwSpeak(RW.passage.text), false),
       rwBtn('🔁 Phir se padho', () => { RW.phase = 'ready'; RW.missed = new Set(); RW.saved = false; render(); }, false),
       RW.saved ? el('div', { style: 'align-self:center; font-weight:700; color:var(--green-ok);' }, ['✓ Save ho gaya']) : rwBtn('💾 Save karo', async () => {
         RW.saved = true;
@@ -324,7 +345,7 @@ function rwFlash(profile){
       el('div', { style: 'color:var(--ink-soft); font-size:13.5px;' }, ['Word dikhega. Turant bol do. Pata hai to ✓, nahi pata to ✗ dabao. 60 second!']),
       rwLevelChips(profile),
       rwBtn('▶ Start', () => {
-        RW.fWords = rwShuffle(RW_SIGHT[lvl]); RW.fIdx = 0; RW.fKnown = 0; RW.fMiss = [];
+        RW.fWords = rwShuffle(RW_SIGHT[lvl].concat(rwSpellMiss(profile.id))); RW.fIdx = 0; RW.fKnown = 0; RW.fMiss = [];
         RW.fEnd = Date.now() + 60000; RW.fPhase = 'play';
         clearInterval(RW.fTimer);
         RW.fTimer = setInterval(() => {
@@ -573,6 +594,15 @@ function rwStats(profile){
       : el('div', { style: 'color:var(--ink-soft); font-size:13px;' }, ['Abhi koi round nahi.'])
   ]));
 
+  const miss = rwSpellMiss(profile.id);
+  wrap.appendChild(el('div', { style: RW_CARD }, [
+    el('h3', { style: 'margin:0 0 6px;' }, ['🔤 Spelling jo galat hui']),
+    miss.length ? el('div', {}, [
+      el('div', { style: 'display:flex; gap:8px; flex-wrap:wrap;' }, miss.map(w => el('span', { style: 'background:#FBEAEC; color:var(--maroon); font-weight:700; padding:6px 12px; border-radius:20px; cursor:pointer;', onclick: () => speak(w) }, [w]))),
+      el('div', { style: 'margin-top:10px;' }, [rwBtn('Saaf karo', () => { try { localStorage.removeItem('apnaTutorSpellMiss_' + profile.id); } catch(e){} render(); }, false)]),
+      el('div', { style: 'font-size:12px; color:var(--ink-soft); margin-top:8px;' }, ['Ye words Word Flash mein bhi aayenge. Tap karke suno aur copy mein 3 baar likho.'])
+    ]) : el('div', { style: 'color:var(--ink-soft); font-size:13px;' }, ['Spelling tab mein jo words galat hongi wo yahan jama hongi.'])
+  ]));
   wrap.appendChild(el('div', { style: RW_CARD }, [
     el('h3', { style: 'margin:0 0 8px;' }, ['🗓️ Roz ka 15-minute plan']),
     el('ol', { style: 'margin:0; padding-left:20px; line-height:1.9; font-size:14.5px;' }, [

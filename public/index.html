@@ -2077,6 +2077,7 @@ function renderSpelling(){
         const correct = state.spellingInput.trim().toLowerCase() === currentWord.trim().toLowerCase();
         state.spellingResult = correct ? 'correct' : 'wrong';
         if (correct) state.spellingScore++;
+        else { try { const k='apnaTutorSpellMiss_'+profile.id; const m=JSON.parse(localStorage.getItem(k)||'[]'); const w=currentWord.trim().toLowerCase(); if(!m.includes(w)){ m.push(w); localStorage.setItem(k, JSON.stringify(m.slice(-30))); } } catch(e){} }
         render();
       }}, ['Check'])
     ])
